@@ -191,7 +191,7 @@ backend/.venv/bin/python backend/scripts/export_contract.py
 
 В Python источником истины служат `backend/app/schemas.py`; TypeScript-описание находится в `frontend/src/types.ts`. При изменении контракта обновляются обе стороны и JSON-артефакты. Автоматическая генерация TypeScript пока не подключена.
 
-`requirements.txt`, `requirements-dev.txt` и `package-lock.json` фиксируют проверенные версии зависимостей. Файлы `.in` — исходные диапазоны для осознанного обновления; обычный запуск использует зафиксированные `.txt` и `npm ci`.
+`requirements.txt`, `requirements-dev.txt` и `package-lock.json` фиксируют проверенные версии зависимостей. Для запуска backend используется `requirements.txt`, а для разработки и тестов — `requirements-dev.txt`; frontend устанавливается через `npm ci`.
 
 ## 8. Если что-то не запускается
 
