@@ -1,0 +1,30 @@
+{
+  "contract_version": "1.0",
+  "series_key": {
+    "route_id": "demo-17",
+    "stop_id": "demo-17-s01",
+    "direction_id": null
+  },
+  "horizon": "day",
+  "resolution": "PT1H",
+  "forecast_origin": "2026-09-26T08:00:00+03:00",
+  "value_unit": "demo_index",
+  "aggregation": "demo_mean",
+  "is_mock": true,
+  "model_version": "mock-v0",
+  "interval_level": null,
+  "points": [
+    {
+      "timestamp": "2026-09-26T08:00:00+03:00",
+      "predicted_load": 58.5,
+      "lower_bound": 49.73,
+      "upper_bound": 67.27
+    },
+    {
+      "timestamp": "2026-09-26T09:00:00+03:00",
+      "predicted_load": 51.03,
+      "lower_bound": 43.38,
+      "upper_bound": 58.68
+    }
+  ]
+}
