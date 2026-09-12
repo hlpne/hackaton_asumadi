@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "ForecastPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "predicted_load": {
+          "minimum": 0,
+          "title": "Predicted Load",
+          "type": "number"
+        },
+        "lower_bound": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lower Bound"
+        },
+        "upper_bound": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upper Bound"
+        }
+      },
+      "required": [
+        "timestamp",
+        "predicted_load"
+      ],
+      "title": "ForecastPoint",
+      "type": "object"
+    },
+    "Horizon": {
+      "enum": [
+        "day",
+        "month",
+        "year"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    },
+    "SeriesKey": {
+      "additionalProperties": false,
+      "properties": {
+        "route_id": {
+          "title": "Route Id",
+          "type": "string"
+        },
+        "stop_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Stop Id"
+        },
+        "direction_id": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Direction Id"
+        }
+      },
+      "required": [
+        "route_id",
+        "stop_id"
+      ],
+      "title": "SeriesKey",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "series_key": {
+      "$ref": "#/$defs/SeriesKey"
+    },
+    "horizon": {
+      "$ref": "#/$defs/Horizon"
+    },
+    "resolution": {
+      "enum": [
+        "PT1H",
+        "P1D",
+        "P1M"
+      ],
+      "title": "Resolution",
+      "type": "string"
+    },
+    "forecast_origin": {
+      "format": "date-time",
+      "title": "Forecast Origin",
+      "type": "string"
+    },
+    "value_unit": {
+      "minLength": 1,
+      "title": "Value Unit",
+      "type": "string"
+    },
+    "aggregation": {
+      "enum": [
+        "demo_mean",
+        "sum",
+        "mean",
+        "max",
+        "last"
+      ],
+      "title": "Aggregation",
+      "type": "string"
+    },
+    "is_mock": {
+      "title": "Is Mock",
+      "type": "boolean"
+    },
+    "model_version": {
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "interval_level": {
+      "anyOf": [
+        {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Interval Level"
+    },
+    "points": {
+      "items": {
+        "$ref": "#/$defs/ForecastPoint"
+      },
+      "maxItems": 744,
+      "minItems": 1,
+      "title": "Points",
+      "type": "array"
+    }
+  },
+  "required": [
+    "series_key",
+    "horizon",
+    "resolution",
+    "forecast_origin",
+    "value_unit",
+    "aggregation",
+    "is_mock",
+    "model_version",
+    "points"
+  ],
+  "title": "ForecastResponse",
+  "type": "object"
+}

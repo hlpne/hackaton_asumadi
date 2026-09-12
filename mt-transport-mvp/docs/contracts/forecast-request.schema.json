@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "Horizon": {
+      "enum": [
+        "day",
+        "month",
+        "year"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "route_id": {
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Route Id",
+      "type": "string"
+    },
+    "stop_id": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Stop Id"
+    },
+    "direction_id": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Direction Id"
+    },
+    "horizon": {
+      "$ref": "#/$defs/Horizon"
+    },
+    "from": {
+      "format": "date-time",
+      "title": "From",
+      "type": "string"
+    },
+    "to": {
+      "format": "date-time",
+      "title": "To",
+      "type": "string"
+    },
+    "forecast_origin": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Forecast Origin"
+    }
+  },
+  "required": [
+    "route_id",
+    "horizon",
+    "from",
+    "to"
+  ],
+  "title": "ForecastRequest",
+  "type": "object"
+}
