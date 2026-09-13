@@ -1,0 +1,32 @@
+name: transport-db-check
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: transport_check
+      POSTGRES_USER: transport_check
+      POSTGRES_PASSWORD: isolated_test_only
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./migrations/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+      - ./seed/002_demo.sql:/docker-entrypoint-initdb.d/002_demo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  check:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      POSTGRES_DB: transport_check
+      POSTGRES_USER: transport_check
+      POSTGRES_PASSWORD: isolated_test_only
+    volumes:
+      - ./:/opt/transport/db:ro
+    entrypoint: ["sh", "/opt/transport/db/scripts/acceptance.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
