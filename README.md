@@ -6,6 +6,11 @@
 
 Основной документ: [архитектура и контракт](docs/architecture.md). Примеры [request](docs/examples/forecast-request.json) и [response](docs/examples/forecast-response.json). Результаты проверок и ограничения: [verification.md](docs/verification.md).
 
+DB-задача: [подробная схема, запуск и тесты](docs/db.md),
+[подтверждённый Docker-прогон](docs/db-verification.md) и
+[инструкция отправки на ревью](docs/github-db-review.md).
+В Compose сохранён внешний порт команды **55432**; backend внутри Docker использует `db:5432`.
+
 ## Что лежит в репозитории
 
 | Путь               | Назначение                                                                                                       |
@@ -23,18 +28,16 @@
 
 ## 1. Получить рабочую копию
 
-Переданный ZIP содержит папку `mt-transport-mvp` с исходниками и файл `mt-transport-mvp.bundle` рядом с ней. Bundle — переносимый Git-репозиторий с начальным коммитом и веткой `main`. Он позволяет выполнить настоящее клонирование без GitHub.
-
-После распаковки откройте терминал в папке с `.bundle`:
+Для командной работы клонируйте общий репозиторий:
 
 ```bash
-git clone mt-transport-mvp.bundle mt-transport-work
-cd mt-transport-work
+git clone https://github.com/hlpne/hackaton_asumadi.git
+cd hackaton_asumadi
 ```
 
-Также можно запустить распакованную папку с исходниками напрямую, но без клонирования в ней не будет `.git`. Для командной работы позже назначается общий remote; готового облачного URL в этом пакете нет. Локальный путь к bundle в `origin` — не общий remote команды.
-
-Если команда уже разместила этот код на Git-сервере, клонируйте фактический URL её репозитория вместо bundle.
+Для просмотра незамерженной задачи перейдите в соответствующую ветку команды.
+Распакованный архив можно запускать отдельно, но для отправки изменений используйте
+клон репозитория и патч. Повторный `git init` и загрузка `.bundle` в репозиторий не нужны.
 
 ## 2. Требования
 
@@ -116,7 +119,10 @@ Frontend: [localhost:5173](http://localhost:5173), backend: [localhost:8000/docs
 docker compose down
 ```
 
-Начальная схема и seed применяются автоматически только при создании пустой БД. Подробнее — [db/README.md](db/README.md). В этой поставке конфигурация Compose подготовлена; фактический запуск контейнеров в среде подготовки не проверялся, поскольку Docker недоступен.
+Начальная схема и seed применяются автоматически только при создании пустой БД.
+Порядок обновления без удаления данных — в [docs/db.md](docs/db.md).
+Запуск PostgreSQL 16.15, сохранность данных после restart и SQL-проверки подтверждены
+участником; подробности и границы проверки — в [отчёте](docs/db-verification.md).
 
 ## 5. Локальные приложения с PostgreSQL в Docker
 
@@ -126,7 +132,11 @@ docker compose down
 docker compose up -d db
 ```
 
-В `.env` установите `CATALOG_BACKEND=postgres`, оставьте `DB_HOST=127.0.0.1`, `DB_PORT=5432` и согласованные `POSTGRES_*`. Запустите backend/frontend командами из раздела 3. `/health` должен вернуть `database: "ok"`.
+В `.env` установите `CATALOG_BACKEND=postgres`, `DB_HOST=127.0.0.1`,
+**`DB_PORT=55432`** и согласованные `POSTGRES_*`. Это порт подключения с компьютера
+к контейнеру в текущей конфигурации команды. Внутри Compose backend продолжает
+использовать `DB_PORT=5432`. Запустите backend/frontend командами из раздела 3.
+`/health` должен вернуть `database: "ok"`.
 
 ## 6. Проверить замену модели без изменения frontend
 
@@ -153,6 +163,23 @@ docker compose up -d --force-recreate backend
 Будущая реальная модель реализует тот же `Predictor`. Примеры провайдеров находятся в `backend/app/predictors/`; отдельного модуля реальной модели пока нет.
 
 ## 7. Команды проверки
+
+БД, из корня проекта, одинаково в PowerShell и Linux/macOS:
+
+```bash
+docker compose up -d --wait db
+docker compose exec -T db sh /opt/transport/db/scripts/manage.sh status
+docker compose exec -T db sh /opt/transport/db/scripts/manage.sh check
+```
+
+Ожидается `DB_CHECK_OK`. Для изолированной приёмки новой БД:
+
+```bash
+docker compose -f db/compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from check
+```
+
+Ожидается `DB_ACCEPTANCE_OK` и код завершения `0`. Рабочие данные не затрагиваются.
+Подготовка Docker, сохранность volume и диагностика описаны в [docs/db.md](docs/db.md).
 
 Backend, из `backend/`:
 
