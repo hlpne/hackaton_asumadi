@@ -151,3 +151,15 @@ class ErrorDetail(ContractModel):
 
 class ErrorResponse(ContractModel):
     error: ErrorDetail
+
+
+class LivenessResponse(ContractModel):
+    status: Literal["ok"] = "ok"
+    service: str
+    version: str
+    environment: str
+
+
+class ReadinessResponse(LivenessResponse):
+    catalog_backend: Literal["memory", "postgres"]
+    database: Literal["disabled", "ok"]

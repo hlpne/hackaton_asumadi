@@ -6,7 +6,7 @@ from typing import Protocol
 import psycopg
 from psycopg.rows import dict_row
 
-from app.config import ROOT, database_parameters
+from app.config import ROOT, Settings
 from app.schemas import Route, RouteStop
 
 
@@ -36,8 +36,11 @@ class MemoryCatalog:
 
 
 class PostgresCatalog:
+    def __init__(self, settings: Settings) -> None:
+        self.connection_parameters = settings.database_parameters()
+
     def _read(self, query: str, parameters: tuple = ()) -> list[dict]:
-        with psycopg.connect(**database_parameters(), row_factory=dict_row) as connection:
+        with psycopg.connect(**self.connection_parameters, row_factory=dict_row) as connection:
             return connection.execute(query, parameters).fetchall()
 
     def routes(self) -> list[Route]:

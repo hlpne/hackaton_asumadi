@@ -12,7 +12,15 @@ from starlette.exceptions import HTTPException
 from app.catalog import Catalog, MemoryCatalog, PostgresCatalog
 from app.config import Settings
 from app.predictors.base import Predictor, load_predictor, validate_prediction
-from app.schemas import ErrorResponse, ForecastRequest, ForecastResponse, Route, RouteStop
+from app.schemas import (
+    ErrorResponse,
+    ForecastRequest,
+    ForecastResponse,
+    LivenessResponse,
+    ReadinessResponse,
+    Route,
+    RouteStop,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +35,20 @@ def get_predictor(request: Request) -> Predictor:
 
 def create_app(settings: Settings | None = None, predictor: Predictor | None = None, catalog: Catalog | None = None) -> FastAPI:
     config = settings or Settings.from_env()
+    logging.basicConfig(
+        level=getattr(logging, config.log_level),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     application = FastAPI(
-        title="Moscow Tram Forecast MVP", version="0.1.0",
+        title=config.app_name, version=config.app_version,
         description="Contract v1. Demo predictions do not represent real passenger counts.",
         docs_url=None, redoc_url=None, servers=[{"url": "."}],
         responses={422: {"model": ErrorResponse}, 404: {"model": ErrorResponse},
                    503: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
     )
+    application.state.settings = config
     application.state.predictor = predictor if predictor is not None else load_predictor(config.predictor_factory)
-    store = catalog if catalog is not None else (PostgresCatalog() if config.catalog_backend == "postgres" else MemoryCatalog())
+    store = catalog if catalog is not None else (PostgresCatalog(config) if config.catalog_backend == "postgres" else MemoryCatalog())
 
     @application.exception_handler(RequestValidationError)
     async def bad_request(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -53,7 +66,7 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
 
     @application.exception_handler(Exception)
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
-        logger.error("Unhandled error: %s", type(exc).__name__)
+        logger.exception("Unhandled application error: %s", type(exc).__name__)
         return error(500, "INTERNAL_ERROR", "Unexpected server error")
 
     def ensure_route(route_id: str) -> None:
@@ -65,9 +78,35 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         # Relative paths work both on :8000/docs and behind the /api proxy.
         return get_swagger_ui_html(openapi_url="./openapi.json", title="Transport API")
 
-    @application.get("/health", tags=["health"])
+    def liveness_payload() -> dict:
+        return {
+            "status": "ok",
+            "service": config.app_name,
+            "version": config.app_version,
+            "environment": config.app_environment,
+        }
+
+    def readiness_payload() -> dict:
+        return {
+            **liveness_payload(),
+            "catalog_backend": config.catalog_backend,
+            "database": store.ping(),
+        }
+
+    @application.get("/health/live", response_model=LivenessResponse, tags=["health"])
+    def health_live() -> dict:
+        """Process liveness; does not contact external dependencies."""
+        return liveness_payload()
+
+    @application.get("/health/ready", response_model=ReadinessResponse, tags=["health"])
+    def health_ready() -> dict:
+        """Readiness probe; verifies PostgreSQL when the PostgreSQL catalog is enabled."""
+        return readiness_payload()
+
+    @application.get("/health", response_model=ReadinessResponse, tags=["health"])
     def health() -> dict:
-        return {"status": "ok", "catalog_backend": config.catalog_backend, "database": store.ping(), "contract_version": "1.0"}
+        """Backward-compatible readiness endpoint required by the MVP contract."""
+        return readiness_payload()
 
     @application.get("/routes", response_model=list[Route], tags=["catalog"])
     def routes() -> list[Route]:

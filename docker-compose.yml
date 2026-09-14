@@ -22,6 +22,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CATALOG_BACKEND: postgres
       PREDICTOR_FACTORY: ${PREDICTOR_FACTORY:-app.predictors.mock:build_predictor}
       DB_HOST: db
@@ -29,13 +31,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-transport}
       POSTGRES_USER: ${POSTGRES_USER:-transport}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-transport_local_only}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-3}
+      DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-3000}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"]
       interval: 10s
       timeout: 5s
       retries: 6
