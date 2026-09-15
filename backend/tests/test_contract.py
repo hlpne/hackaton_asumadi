@@ -10,7 +10,7 @@ from app.catalog import MemoryCatalog
 from app.config import Settings
 from app.main import create_app
 from app.predictors.constant import ConstantPredictor
-from app.schemas import ForecastRequest, ForecastResponse
+from app.schemas import ForecastRequest, ForecastResponse, MapForecastResponse, TopOverloadResponse
 
 ROOT = Path(__file__).resolve().parents[2]
 DAY = {"route_id": "demo-17", "horizon": "day", "from": "2026-09-26T00:00:00+03:00", "to": "2026-09-27T00:00:00+03:00"}
@@ -158,5 +158,9 @@ def test_examples_and_schema_match_implementation(client):
     assert client.get("/forecast", params=query).json() == expected
     assert json.loads((ROOT / "docs/contracts/forecast-request.schema.json").read_text()) == ForecastRequest.model_json_schema(by_alias=True)
     assert json.loads((ROOT / "docs/contracts/forecast-response.schema.json").read_text()) == ForecastResponse.model_json_schema()
+    assert json.loads((ROOT / "docs/contracts/forecast-map-response.schema.json").read_text()) == MapForecastResponse.model_json_schema()
+    assert json.loads((ROOT / "docs/contracts/forecast-top-overload-response.schema.json").read_text()) == TopOverloadResponse.model_json_schema()
+    MapForecastResponse.model_validate_json((ROOT / "docs/examples/forecast-map-response.json").read_text())
+    TopOverloadResponse.model_validate_json((ROOT / "docs/examples/forecast-top-overload-response.json").read_text())
     assert client.get("/openapi.json").json() == json.loads((ROOT / "docs/openapi.json").read_text())
     assert "./openapi.json" in client.get("/docs").text

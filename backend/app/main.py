@@ -6,20 +6,30 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
-from pydantic import ValidationError
 from starlette.exceptions import HTTPException
 
 from app.catalog import Catalog, MemoryCatalog, PostgresCatalog
 from app.config import Settings
-from app.predictors.base import Predictor, load_predictor, validate_prediction
+from app.forecast_service import (
+    InvalidPredictionError,
+    PredictorUnavailableError,
+    predict,
+    snapshot,
+    top_overload,
+)
+from app.predictors.base import Predictor, load_predictor
 from app.schemas import (
     ErrorResponse,
     ForecastRequest,
     ForecastResponse,
     LivenessResponse,
+    MapForecastResponse,
     ReadinessResponse,
     Route,
     RouteStop,
+    SnapshotRequest,
+    TopOverloadRequest,
+    TopOverloadResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,6 +73,14 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     async def database_error(_: Request, exc: psycopg.Error) -> JSONResponse:
         logger.error("Database unavailable: %s", type(exc).__name__)
         return error(503, "DATABASE_UNAVAILABLE", "Catalog database is unavailable")
+
+    @application.exception_handler(InvalidPredictionError)
+    async def invalid_prediction(_: Request, __: InvalidPredictionError) -> JSONResponse:
+        return error(502, "INVALID_PREDICTION", "Predictor returned an invalid forecast")
+
+    @application.exception_handler(PredictorUnavailableError)
+    async def predictor_unavailable(_: Request, __: PredictorUnavailableError) -> JSONResponse:
+        return error(503, "PREDICTOR_UNAVAILABLE", "Prediction provider is unavailable")
 
     @application.exception_handler(Exception)
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
@@ -118,7 +136,7 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         return store.stops(route_id)
 
     @application.get("/forecast", response_model=ForecastResponse, tags=["forecast"])
-    def forecast(query: Annotated[ForecastRequest, Query()], provider: Annotated[Predictor, Depends(get_predictor)]) -> ForecastResponse | JSONResponse:
+    def forecast(query: Annotated[ForecastRequest, Query()], provider: Annotated[Predictor, Depends(get_predictor)]) -> ForecastResponse:
         ensure_route(query.route_id)
         route_stops = store.stops(query.route_id)
         if query.direction_id is not None:
@@ -127,14 +145,27 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
                 raise HTTPException(404, "Direction not found on this route")
         if query.stop_id is not None and not any(item.id == query.stop_id for item in route_stops):
             raise HTTPException(404, "Stop not found on the selected route/direction")
+        return predict(provider, query)
+
+    @application.get("/forecast/map", response_model=MapForecastResponse, tags=["forecast"])
+    def forecast_map(
+        query: Annotated[SnapshotRequest, Query()],
+        provider: Annotated[Predictor, Depends(get_predictor)],
+    ) -> MapForecastResponse:
         try:
-            return validate_prediction(query, provider.predict(query))
-        except (ValidationError, ValueError, TypeError, AttributeError):
-            logger.error("Predictor violated the forecast contract")
-            return error(502, "INVALID_PREDICTION", "Predictor returned an invalid forecast")
-        except Exception as exc:
-            logger.error("Predictor failed: %s", type(exc).__name__)
-            return error(503, "PREDICTOR_UNAVAILABLE", "Prediction provider is unavailable")
+            return snapshot(store, provider, query)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @application.get("/forecast/top-overload", response_model=TopOverloadResponse, tags=["forecast"])
+    def forecast_top_overload(
+        query: Annotated[TopOverloadRequest, Query()],
+        provider: Annotated[Predictor, Depends(get_predictor)],
+    ) -> TopOverloadResponse:
+        try:
+            return top_overload(snapshot(store, provider, query), query.limit)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
 
     return application
 

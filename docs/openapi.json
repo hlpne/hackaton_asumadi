@@ -492,6 +492,302 @@
           }
         }
       }
+    },
+    "/forecast/map": {
+      "get": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Forecast Map",
+        "operationId": "forecast_map_forecast_map_get",
+        "parameters": [
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Horizon",
+              "default": "day"
+            }
+          },
+          {
+            "name": "timestamp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timestamp"
+            }
+          },
+          {
+            "name": "forecast_origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Forecast Origin"
+            }
+          },
+          {
+            "name": "route_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Route Id"
+            }
+          },
+          {
+            "name": "direction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapForecastResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/forecast/top-overload": {
+      "get": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Forecast Top Overload",
+        "operationId": "forecast_top_overload_forecast_top_overload_get",
+        "parameters": [
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Horizon",
+              "default": "day"
+            }
+          },
+          {
+            "name": "timestamp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timestamp"
+            }
+          },
+          {
+            "name": "forecast_origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Forecast Origin"
+            }
+          },
+          {
+            "name": "route_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Route Id"
+            }
+          },
+          {
+            "name": "direction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopOverloadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -711,6 +1007,272 @@
         ],
         "title": "LivenessResponse"
       },
+      "MapForecastPoint": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "route_name": {
+            "type": "string",
+            "title": "Route Name"
+          },
+          "route_color": {
+            "type": "string",
+            "title": "Route Color"
+          },
+          "stop_id": {
+            "type": "string",
+            "title": "Stop Id"
+          },
+          "stop_name": {
+            "type": "string",
+            "title": "Stop Name"
+          },
+          "direction_id": {
+            "type": "integer",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Direction Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sequence"
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon"
+          },
+          "predicted_load": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Predicted Load"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "route_id",
+          "route_name",
+          "route_color",
+          "stop_id",
+          "stop_name",
+          "direction_id",
+          "sequence",
+          "lat",
+          "lon",
+          "predicted_load"
+        ],
+        "title": "MapForecastPoint"
+      },
+      "MapForecastResponse": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Contract Version",
+            "default": "1.0"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/Horizon"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "forecast_origin": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Forecast Origin"
+          },
+          "value_unit": {
+            "type": "string",
+            "title": "Value Unit"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "demo_mean",
+              "sum",
+              "mean",
+              "max",
+              "last"
+            ],
+            "title": "Aggregation"
+          },
+          "is_mock": {
+            "type": "boolean",
+            "title": "Is Mock"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "interval_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Level"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/MapForecastPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "horizon",
+          "timestamp",
+          "forecast_origin",
+          "value_unit",
+          "aggregation",
+          "is_mock",
+          "model_version",
+          "interval_level",
+          "points"
+        ],
+        "title": "MapForecastResponse"
+      },
+      "OverloadItem": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "route_name": {
+            "type": "string",
+            "title": "Route Name"
+          },
+          "route_color": {
+            "type": "string",
+            "title": "Route Color"
+          },
+          "stop_id": {
+            "type": "string",
+            "title": "Stop Id"
+          },
+          "stop_name": {
+            "type": "string",
+            "title": "Stop Name"
+          },
+          "direction_id": {
+            "type": "integer",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Direction Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sequence"
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon"
+          },
+          "predicted_load": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Predicted Load"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "route_id",
+          "route_name",
+          "route_color",
+          "stop_id",
+          "stop_name",
+          "direction_id",
+          "sequence",
+          "lat",
+          "lon",
+          "predicted_load",
+          "rank"
+        ],
+        "title": "OverloadItem"
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -862,6 +1424,90 @@
           "stop_id"
         ],
         "title": "SeriesKey"
+      },
+      "TopOverloadResponse": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Contract Version",
+            "default": "1.0"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/Horizon"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "forecast_origin": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Forecast Origin"
+          },
+          "value_unit": {
+            "type": "string",
+            "title": "Value Unit"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "demo_mean",
+              "sum",
+              "mean",
+              "max",
+              "last"
+            ],
+            "title": "Aggregation"
+          },
+          "is_mock": {
+            "type": "boolean",
+            "title": "Is Mock"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "interval_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Level"
+          },
+          "ranking_basis": {
+            "type": "string",
+            "const": "predicted_load_desc",
+            "title": "Ranking Basis",
+            "default": "predicted_load_desc"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OverloadItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "horizon",
+          "timestamp",
+          "forecast_origin",
+          "value_unit",
+          "aggregation",
+          "is_mock",
+          "model_version",
+          "interval_level",
+          "items"
+        ],
+        "title": "TopOverloadResponse"
       }
     }
   }

@@ -7,9 +7,17 @@ root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / "backend"))
 
 from app.config import Settings
+from app.catalog import MemoryCatalog
+from app.forecast_service import snapshot, top_overload
 from app.main import create_app
 from app.predictors.mock import MockPredictor
-from app.schemas import ForecastRequest, ForecastResponse
+from app.schemas import (
+    ForecastRequest,
+    ForecastResponse,
+    MapForecastResponse,
+    SnapshotRequest,
+    TopOverloadResponse,
+)
 
 request_data = {
     "route_id": "demo-17", "stop_id": "demo-17-s01", "horizon": "day",
@@ -17,6 +25,18 @@ request_data = {
 }
 request = ForecastRequest.model_validate(request_data)
 response_data = MockPredictor().predict(request).model_dump(mode="json")
+snapshot_request_data = {
+    "horizon": "day",
+    "timestamp": "2026-09-26T08:00:00+03:00",
+    "route_id": "demo-17",
+    "direction_id": 0,
+}
+map_response = snapshot(
+    MemoryCatalog(),
+    MockPredictor(),
+    SnapshotRequest.model_validate(snapshot_request_data),
+)
+top_response = top_overload(map_response, 5)
 
 
 def dump(value):
@@ -26,8 +46,12 @@ def dump(value):
 outputs = {
     "docs/examples/forecast-request.json": request_data,
     "docs/examples/forecast-response.json": response_data,
+    "docs/examples/forecast-map-response.json": map_response.model_dump(mode="json"),
+    "docs/examples/forecast-top-overload-response.json": top_response.model_dump(mode="json"),
     "docs/contracts/forecast-request.schema.json": ForecastRequest.model_json_schema(by_alias=True),
     "docs/contracts/forecast-response.schema.json": ForecastResponse.model_json_schema(),
+    "docs/contracts/forecast-map-response.schema.json": MapForecastResponse.model_json_schema(),
+    "docs/contracts/forecast-top-overload-response.schema.json": TopOverloadResponse.model_json_schema(),
     "docs/openapi.json": create_app(Settings()).openapi(),
 }
 for name, value in outputs.items():
@@ -42,4 +66,4 @@ for marker, value in (("REQUEST", request_data), ("RESPONSE", response_data)):
     start, end = text.index(left) + len(left), text.index(right)
     text = text[:start] + "\n```json\n" + dump(value) + "```\n" + text[end:]
 document.write_text(text, encoding="utf-8")
-print("Exported 5 JSON artifacts and refreshed architecture examples.")
+print("Exported 9 JSON artifacts and refreshed architecture examples.")
