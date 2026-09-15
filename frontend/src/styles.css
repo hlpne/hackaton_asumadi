@@ -137,3 +137,10 @@ a { color: #173f71; text-underline-offset: .2em; }
 .top-item--high .top-load {
   color: #941f29;
 }
+.leaflet-control-attribution a.leaflet-attribution-flag,
+a.leaflet-attribution-flag {
+  display: none !important;
+}
+.leaflet-control-attribution {
+  display: none !important;
+}
