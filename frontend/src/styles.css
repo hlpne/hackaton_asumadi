@@ -39,3 +39,101 @@ footer { display: flex; gap: 1rem; justify-content: space-between; flex-wrap: wr
 a { color: #173f71; text-underline-offset: .2em; }
 @media (max-width: 1050px) { .filters { grid-template-columns: 1fr 1fr; } button { grid-column: 1 / -1; } }
 @media (max-width: 580px) { .topbar { padding: 1.1rem; flex-direction: column; align-items: flex-start; } main { padding: 1.75rem 1rem 1rem; } .filters { grid-template-columns: 1fr; padding: 1rem; } .result { padding: 1rem; } .empty { padding: 1.5rem .25rem; } }
+.map-wrapper {
+  margin-top: 1.5rem;
+  background: #fff;
+  border: 1px solid #d7dfeb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.map-container {
+  width: 100%;
+  height: 420px;
+  border-radius: 6px;
+  z-index: 0;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 580px) {
+  .map-container {
+    height: 300px;
+  }
+}
+.chart-wrapper {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e6ef;
+}
+
+.chart-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #17263c;
+  margin: 0 0 1rem;
+}
+.top-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e6ef;
+}
+
+.top-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.top-item {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  border-radius: 6px;
+  background: #f8fafd;
+  border-left: 4px solid #d7dfeb;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-item--high {
+  border-left-color: #e74646;
+  background: #fff5f5;
+}
+
+.top-item--medium {
+  border-left-color: #e08a2e;
+  background: #fffaf0;
+}
+
+.top-item--low {
+  border-left-color: #5a8cc4;
+}
+
+.top-rank {
+  font-weight: 700;
+  color: #536177;
+  font-size: 0.875rem;
+}
+
+.top-time {
+  color: #17263c;
+  font-size: 0.9rem;
+}
+
+.top-load {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #17263c;
+}
+
+.top-item--high .top-load {
+  color: #941f29;
+}
