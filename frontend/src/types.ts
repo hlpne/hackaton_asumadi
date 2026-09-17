@@ -30,3 +30,53 @@ export interface ForecastResponse {
   interval_level: number | null;
   points: ForecastPoint[];
 }
+
+export interface SnapshotRequest {
+  horizon?: Horizon;
+  timestamp?: string;
+  forecast_origin?: string;
+  route_id?: string;
+  direction_id?: 0 | 1;
+}
+
+export interface MapForecastPoint {
+  route_id: string;
+  route_name: string;
+  route_color: string;
+  stop_id: string;
+  stop_name: string;
+  direction_id: 0 | 1;
+  sequence: number;
+  lat: number;
+  lon: number;
+  predicted_load: number;
+  lower_bound: number | null;
+  upper_bound: number | null;
+}
+
+export interface MapForecastResponse {
+  contract_version: "1.0";
+  horizon: Horizon;
+  timestamp: string;
+  forecast_origin: string;
+  value_unit: string;
+  aggregation: "demo_mean" | "sum" | "mean" | "max" | "last";
+  is_mock: boolean;
+  model_version: string;
+  interval_level: number | null;
+  points: MapForecastPoint[];
+}
+
+export interface TopOverloadResponse {
+  contract_version: "1.0";
+  horizon: Horizon;
+  timestamp: string;
+  forecast_origin: string;
+  value_unit: string;
+  aggregation: "demo_mean" | "sum" | "mean" | "max" | "last";
+  is_mock: boolean;
+  model_version: string;
+  interval_level: number | null;
+  ranking_basis: "predicted_load_desc";
+  items: Array<MapForecastPoint & { rank: number }>;
+}

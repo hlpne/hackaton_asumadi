@@ -1,4 +1,12 @@
-import type { ForecastRequest, ForecastResponse, Route, RouteStop } from "./types";
+import type {
+  ForecastRequest,
+  ForecastResponse,
+  MapForecastResponse,
+  Route,
+  RouteStop,
+  SnapshotRequest,
+  TopOverloadResponse,
+} from "./types";
 import { mockForecast, mockRoutes, mockStopsForRoute } from "./mock/mockData";
 
 async function read<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -9,6 +17,14 @@ async function read<T>(path: string, signal?: AbortSignal): Promise<T> {
     throw new Error(message);
   }
   return response.json() as Promise<T>;
+}
+
+function queryString(request: Record<string, unknown>): string {
+  const parameters = new URLSearchParams();
+  Object.entries(request).forEach(([key, value]) => {
+    if (value !== undefined) parameters.set(key, String(value));
+  });
+  return parameters.toString();
 }
 
 export async function getRoutes(signal?: AbortSignal): Promise<Route[]> {
@@ -41,10 +57,7 @@ export async function getForecast(
   request: ForecastRequest,
   signal?: AbortSignal
 ): Promise<ForecastResponse> {
-  const parameters = new URLSearchParams();
-  Object.entries(request).forEach(([key, value]) => {
-    if (value !== undefined) parameters.set(key, String(value));
-  });
+  const parameters = queryString(request as unknown as Record<string, unknown>);
   try {
     return await read<ForecastResponse>(`/forecast?${parameters}`, signal);
   } catch (error) {
@@ -52,4 +65,26 @@ export async function getForecast(
     console.warn("[api] backend недоступен, используем mock forecast", error);
     return mockForecast(request.route_id, request.stop_id, request.horizon);
   }
+}
+
+
+export function getMapForecast(
+  request: SnapshotRequest = {},
+  signal?: AbortSignal
+): Promise<MapForecastResponse> {
+  return read<MapForecastResponse>(
+    `/forecast/map?${queryString(request as Record<string, unknown>)}`,
+    signal
+  );
+}
+
+
+export function getTopOverload(
+  request: SnapshotRequest & { limit?: number } = {},
+  signal?: AbortSignal
+): Promise<TopOverloadResponse> {
+  return read<TopOverloadResponse>(
+    `/forecast/top-overload?${queryString(request as Record<string, unknown>)}`,
+    signal
+  );
 }

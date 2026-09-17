@@ -125,6 +125,107 @@ class ForecastResponse(ContractModel):
         return self
 
 
+class SnapshotRequest(ContractModel):
+    horizon: Horizon = Horizon.DAY
+    timestamp: AwareDatetime | None = None
+    forecast_origin: AwareDatetime | None = None
+    route_id: str | None = Field(default=None, min_length=1, max_length=100)
+    direction_id: DirectionId | None = None
+
+    @model_validator(mode="after")
+    def validate_snapshot(self) -> Self:
+        if self.timestamp is None:
+            default = "2026-09-26T08:00:00+03:00" if self.horizon == Horizon.DAY else "2026-09-01T00:00:00+03:00"
+            self.timestamp = datetime.fromisoformat(default)
+        self.timestamp = self.timestamp.astimezone(MOSCOW)
+        self.forecast_origin = (self.forecast_origin or self.timestamp).astimezone(MOSCOW)
+        if self.timestamp.year < 2000 or self.timestamp.year > 2100:
+            raise ValueError("Supported date range is 2000–2100")
+        if self.forecast_origin > self.timestamp:
+            raise ValueError("forecast_origin must be no later than timestamp")
+        if self.timestamp.minute or self.timestamp.second or self.timestamp.microsecond:
+            raise ValueError("timestamp must be on a whole-hour boundary in Europe/Moscow")
+        if self.horizon != Horizon.DAY and self.timestamp.hour:
+            raise ValueError("month/year timestamp must be at midnight in Europe/Moscow")
+        if self.horizon == Horizon.YEAR and self.timestamp.day != 1:
+            raise ValueError("year timestamp must be the first day of a month")
+        return self
+
+    def forecast_request(self, route_id: str, stop_id: str, direction_id: int) -> ForecastRequest:
+        assert self.timestamp is not None
+        end = {
+            Horizon.DAY: self.timestamp + timedelta(hours=1),
+            Horizon.MONTH: self.timestamp + timedelta(days=1),
+            Horizon.YEAR: add_months(self.timestamp, 1),
+        }[self.horizon]
+        return ForecastRequest(
+            route_id=route_id,
+            stop_id=stop_id,
+            direction_id=direction_id,
+            horizon=self.horizon,
+            **{"from": self.timestamp, "to": end},
+            forecast_origin=self.forecast_origin,
+        )
+
+
+class TopOverloadRequest(SnapshotRequest):
+    limit: int = Field(default=5, ge=1, le=50)
+
+
+class MapForecastPoint(ContractModel):
+    route_id: str
+    route_name: str
+    route_color: str
+    stop_id: str
+    stop_name: str
+    direction_id: DirectionId
+    sequence: int = Field(ge=0)
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    predicted_load: float = Field(ge=0)
+    lower_bound: float | None = Field(default=None, ge=0)
+    upper_bound: float | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_bounds(self) -> Self:
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("Both bounds must be provided together, or both must be null")
+        if self.lower_bound is not None and not self.lower_bound <= self.predicted_load <= self.upper_bound:
+            raise ValueError("Expected lower_bound <= predicted_load <= upper_bound")
+        return self
+
+
+class MapForecastResponse(ContractModel):
+    contract_version: Literal["1.0"] = "1.0"
+    horizon: Horizon
+    timestamp: AwareDatetime
+    forecast_origin: AwareDatetime
+    value_unit: str
+    aggregation: Literal["demo_mean", "sum", "mean", "max", "last"]
+    is_mock: bool
+    model_version: str
+    interval_level: float | None
+    points: list[MapForecastPoint]
+
+
+class OverloadItem(MapForecastPoint):
+    rank: int = Field(ge=1)
+
+
+class TopOverloadResponse(ContractModel):
+    contract_version: Literal["1.0"] = "1.0"
+    horizon: Horizon
+    timestamp: AwareDatetime
+    forecast_origin: AwareDatetime
+    value_unit: str
+    aggregation: Literal["demo_mean", "sum", "mean", "max", "last"]
+    is_mock: bool
+    model_version: str
+    interval_level: float | None
+    ranking_basis: Literal["predicted_load_desc"] = "predicted_load_desc"
+    items: list[OverloadItem]
+
+
 class Route(ContractModel):
     id: str
     name: str

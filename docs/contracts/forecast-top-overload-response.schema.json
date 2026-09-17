@@ -1,0 +1,194 @@
+{
+  "$defs": {
+    "Horizon": {
+      "enum": [
+        "day",
+        "month",
+        "year"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    },
+    "OverloadItem": {
+      "additionalProperties": false,
+      "properties": {
+        "route_id": {
+          "title": "Route Id",
+          "type": "string"
+        },
+        "route_name": {
+          "title": "Route Name",
+          "type": "string"
+        },
+        "route_color": {
+          "title": "Route Color",
+          "type": "string"
+        },
+        "stop_id": {
+          "title": "Stop Id",
+          "type": "string"
+        },
+        "stop_name": {
+          "title": "Stop Name",
+          "type": "string"
+        },
+        "direction_id": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Direction Id",
+          "type": "integer"
+        },
+        "sequence": {
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "predicted_load": {
+          "minimum": 0,
+          "title": "Predicted Load",
+          "type": "number"
+        },
+        "lower_bound": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lower Bound"
+        },
+        "upper_bound": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upper Bound"
+        },
+        "rank": {
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "route_id",
+        "route_name",
+        "route_color",
+        "stop_id",
+        "stop_name",
+        "direction_id",
+        "sequence",
+        "lat",
+        "lon",
+        "predicted_load",
+        "rank"
+      ],
+      "title": "OverloadItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "horizon": {
+      "$ref": "#/$defs/Horizon"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "forecast_origin": {
+      "format": "date-time",
+      "title": "Forecast Origin",
+      "type": "string"
+    },
+    "value_unit": {
+      "title": "Value Unit",
+      "type": "string"
+    },
+    "aggregation": {
+      "enum": [
+        "demo_mean",
+        "sum",
+        "mean",
+        "max",
+        "last"
+      ],
+      "title": "Aggregation",
+      "type": "string"
+    },
+    "is_mock": {
+      "title": "Is Mock",
+      "type": "boolean"
+    },
+    "model_version": {
+      "title": "Model Version",
+      "type": "string"
+    },
+    "interval_level": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Interval Level"
+    },
+    "ranking_basis": {
+      "const": "predicted_load_desc",
+      "default": "predicted_load_desc",
+      "title": "Ranking Basis",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/OverloadItem"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "horizon",
+    "timestamp",
+    "forecast_origin",
+    "value_unit",
+    "aggregation",
+    "is_mock",
+    "model_version",
+    "interval_level",
+    "items"
+  ],
+  "title": "TopOverloadResponse",
+  "type": "object"
+}
