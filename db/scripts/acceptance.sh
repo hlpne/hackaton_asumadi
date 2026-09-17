@@ -12,7 +12,9 @@ fingerprint() {
             'routes', (SELECT jsonb_agg(to_jsonb(r) ORDER BY id) FROM routes r),
             'stops', (SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM stops s),
             'links', (SELECT jsonb_agg(to_jsonb(rs) ORDER BY route_id, direction_id, sequence)
-                      FROM route_stops rs))::text);"
+                      FROM route_stops rs),
+            'forecasts', (SELECT jsonb_agg(to_jsonb(f) - 'id' ORDER BY route_id,
+                          stop_id NULLS FIRST, timestamp) FROM forecasts f))::text);"
 }
 
 # Verify that the official image initialized tables/seed before health became ready.

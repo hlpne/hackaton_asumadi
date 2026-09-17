@@ -27,9 +27,9 @@ export function ForecastTable({ forecast }: ForecastTableProps) {
         <thead>
           <tr>
             <th scope="col">Начало интервала, МСК</th>
-            <th scope="col">Прогноз</th>
-            <th scope="col">Нижняя граница</th>
-            <th scope="col">Верхняя граница</th>
+            <th scope="col">Индекс загрузки</th>
+            <th scope="col">Минимальная оценка</th>
+            <th scope="col">Максимальная оценка</th>
           </tr>
         </thead>
         <tbody>
