@@ -85,9 +85,13 @@ a { color: #173f71; text-underline-offset: .2em; }
 .yandex-stop-marker.selected { width: 16px; height: 16px; border: 3px solid #14243b; }
 .yandex-stop-marker:focus-visible { outline: 3px solid #14243b; outline-offset: 3px; }
 
-.leaflet-container {
-  font-family: inherit;
-  font-size: 0.875rem;
+.map-unavailable {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+  color: #9d2634;
+  background: #fff4f4;
 }
 
 @media (max-width: 580px) {

@@ -57,7 +57,7 @@ interface YandexMapProps {
   selectedStopId: string;
   colorForValue: (value: number, snapshot: MapForecastResponse) => string;
   onStopSelect: (stopId: string) => void;
-  onError: () => void;
+  onError: (message: string) => void;
 }
 
 export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, selectedStopId, colorForValue, onStopSelect, onError }: YandexMapProps) {
@@ -81,7 +81,11 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       mapRef.current = map;
       apiRef.current = api;
       setReady(true);
-    }).catch(() => { if (!cancelled) onError(); });
+    }).catch((error: unknown) => {
+      if (!cancelled) {
+        onError(error instanceof Error ? error.message : "Не удалось загрузить Яндекс Карты");
+      }
+    });
     return () => {
       cancelled = true;
       mapRef.current?.destroy();
