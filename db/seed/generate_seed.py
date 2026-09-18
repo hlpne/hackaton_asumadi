@@ -1,4 +1,4 @@
-"""Regenerate the deterministic demo catalog and PostgreSQL seed."""
+"""Regenerate the deterministic OSM geography and mock forecast seed."""
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -13,15 +13,35 @@ FORECAST_ORIGIN = datetime(2026, 9, 26, tzinfo=MOSCOW)
 FORECAST_HOURS = 24
 MODEL_VERSION = "mock-seed-v1"
 
-ROUTES = (
-    ("demo-17", "Демо-маршрут 17", "#24528a", 28),
-    ("demo-39", "Демо-маршрут 39", "#c5404c", 43),
-    ("demo-7", "Демо-маршрут 7", "#1e7568", 35),
-)
+ROUTE_BASES = {"demo-17": 28, "demo-39": 43, "demo-7": 35}
+SERVICE_HOURS = json.loads((ROOT / "mock_data" / "service_hours.json").read_text(encoding="utf-8"))
+
+
+def in_demo_service(series_key: str, timestamp: datetime) -> bool:
+    """Apply the same illustrative service window as the API mock predictor."""
+    route_id, _, stop_id = series_key.partition("/")
+    stop_id = stop_id.split("/", 1)[0]
+    window = (SERVICE_HOURS["stops"].get(stop_id)
+              or SERVICE_HOURS["routes"].get(route_id)
+              or SERVICE_HOURS["default"])
+    start = int(window["start"][:2]) * 60 + int(window["start"][3:])
+    end = int(window["end"][:2]) * 60 + int(window["end"][3:])
+    minute = timestamp.hour * 60 + timestamp.minute
+    return start <= minute < end if start < end else minute >= start or minute < end
+
+
+def route_base(route_id: str) -> int:
+    """Keep existing demo series stable and assign other routes stable load bands."""
+    return ROUTE_BASES.get(
+        route_id,
+        27 + int(sha256(route_id.encode("utf-8")).hexdigest()[:8], 16) % 23,
+    )
 
 
 def hour_value(series_key: str, timestamp: datetime, route_base: float) -> float:
     """Return a stable synthetic load with morning and evening peaks."""
+    if not in_demo_service(series_key, timestamp):
+        return 0.0
     series_offset = int(sha256(series_key.encode()).hexdigest()[:8], 16) % 17 - 8
     morning_peak = 42 * exp(-((timestamp.hour - 8) / 2.0) ** 2)
     evening_peak = 36 * exp(-((timestamp.hour - 18) / 2.6) ** 2)
@@ -30,29 +50,33 @@ def hour_value(series_key: str, timestamp: datetime, route_base: float) -> float
 
 
 def build_data() -> dict[str, list[dict]]:
+    geography = json.loads((ROOT / "mock_data" / "osm_trams.json").read_text(encoding="utf-8"))
     data: dict[str, list[dict]] = {
         "routes": [],
         "stops": [],
         "route_stops": [],
         "forecasts": [],
     }
-    for route_index, (route_id, route_name, color, route_base) in enumerate(ROUTES):
-        data["routes"].append({"id": route_id, "name": route_name, "color": color})
+    for route in geography["routes"]:
+        route_id = route["id"]
+        base_load = route_base(route_id)
+        data["routes"].append({"id": route_id, "name": route["name"], "color": route["color"]})
         route_stop_ids = []
-        for stop_index in range(8):
-            stop_id = f"{route_id}-s{stop_index + 1:02}"
-            route_stop_ids.append(stop_id)
-            data["stops"].append({
-                "id": stop_id,
-                "name": f"Демо-остановка {route_index * 8 + stop_index + 1:02}",
-                "lat": round(55.72 + route_index * 0.035 + stop_index * 0.003, 6),
-                "lon": round(37.55 + route_index * 0.04 + stop_index * 0.006, 6),
-            })
-            for direction in (0, 1):
+        for direction, geometry in enumerate(route["directions"]):
+            for stop_index, source_stop in enumerate(geometry["stops"]):
+                suffix = f"s{stop_index + 1:02}" if direction == 0 else f"r{stop_index + 1:02}"
+                stop_id = f"{route_id}-{suffix}"
+                route_stop_ids.append(stop_id)
+                data["stops"].append({
+                    "id": stop_id,
+                    "name": source_stop["name"],
+                    "lat": source_stop["lat"],
+                    "lon": source_stop["lon"],
+                })
                 data["route_stops"].append({
                     "route_id": route_id,
                     "stop_id": stop_id,
-                    "sequence": stop_index if direction == 0 else 7 - stop_index,
+                    "sequence": stop_index,
                     "direction_id": direction,
                 })
 
@@ -61,7 +85,7 @@ def build_data() -> dict[str, list[dict]]:
         for stop_id, series_key in series:
             for hour in range(FORECAST_HOURS):
                 timestamp = FORECAST_ORIGIN + timedelta(hours=hour)
-                predicted_load = hour_value(series_key, timestamp, route_base)
+                predicted_load = hour_value(series_key, timestamp, base_load)
                 data["forecasts"].append({
                     "route_id": route_id,
                     "stop_id": stop_id,
@@ -129,7 +153,7 @@ def main() -> None:
     )
 
     statements = [
-        "-- Deterministic demo data; not real tram routes or passenger counts.",
+        "-- OSM geography snapshot with deterministic synthetic load forecasts; not real passenger counts.",
         "BEGIN;",
     ]
     for table in ("routes", "stops", "route_stops", "forecasts"):

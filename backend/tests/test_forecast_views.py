@@ -28,7 +28,7 @@ def test_map_snapshot_supports_every_horizon(client, horizon, timestamp):
     data = MapForecastResponse.model_validate(response.json())
     assert data.horizon == horizon
     assert data.timestamp.isoformat() == timestamp
-    assert len(data.points) == 48
+    assert len(data.points) == 2132
     assert data.is_mock is True
     assert data.value_unit == "demo_index"
     assert all(point.stop_name and point.route_name for point in data.points)
@@ -42,9 +42,32 @@ def test_map_filters_route_and_direction(client):
 
     assert response.status_code == 200
     data = MapForecastResponse.model_validate(response.json())
-    assert len(data.points) == 8
+    assert len(data.points) == 26
     assert {point.route_id for point in data.points} == {"demo-17"}
     assert {point.direction_id for point in data.points} == {1}
+
+
+def test_map_snapshot_accepts_minute_time_for_day(client):
+    response = client.get("/forecast/map", params={
+        "route_id": "demo-17",
+        "horizon": "day",
+        "timestamp": "2026-09-26T07:25:00+03:00",
+    })
+    assert response.status_code == 200, response.text
+    data = MapForecastResponse.model_validate(response.json())
+    assert data.timestamp.isoformat() == "2026-09-26T07:25:00+03:00"
+    assert len(data.points) == 52
+
+
+def test_night_snapshot_has_no_mock_load_or_overload(client):
+    params = {"route_id": "demo-17", "horizon": "day", "timestamp": "2026-09-26T03:00:00+03:00"}
+    snapshot = client.get("/forecast/map", params=params)
+    overload = client.get("/forecast/top-overload", params=params)
+    assert snapshot.status_code == 200, snapshot.text
+    assert snapshot.json()["points"]
+    assert all(point["predicted_load"] == 0 for point in snapshot.json()["points"])
+    assert overload.status_code == 200, overload.text
+    assert overload.json()["items"] == []
 
 
 def test_map_rejects_unknown_route(client):
@@ -58,7 +81,7 @@ def test_map_rejects_unknown_route(client):
     "params",
     [
         {"horizon": "week"},
-        {"horizon": "day", "timestamp": "2026-09-26T08:15:00+03:00"},
+        {"horizon": "day", "timestamp": "2026-09-26T08:15:30+03:00"},
         {"horizon": "month", "timestamp": "2026-09-26T08:00:00+03:00"},
         {"horizon": "year", "timestamp": "2026-09-26T00:00:00+03:00"},
         {"direction_id": 2},

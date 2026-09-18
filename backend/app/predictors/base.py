@@ -27,8 +27,9 @@ def validate_prediction(request: ForecastRequest, response: ForecastResponse) ->
     key = result.series_key
     if (key.route_id, key.stop_id, key.direction_id) != (request.route_id, request.stop_id, request.direction_id):
         raise ValueError("Provider returned a different series")
-    if result.horizon != request.horizon or result.forecast_origin != request.forecast_origin:
-        raise ValueError("Provider returned a different horizon or origin")
+    if (result.horizon != request.horizon or result.resolution != request.resolution
+            or result.forecast_origin != request.forecast_origin):
+        raise ValueError("Provider returned a different horizon, resolution or origin")
     if [point.timestamp for point in result.points] != request.timestamps():
         raise ValueError("Provider returned an incomplete, unordered or different time grid")
     return result

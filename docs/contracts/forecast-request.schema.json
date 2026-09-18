@@ -49,6 +49,24 @@
     "horizon": {
       "$ref": "#/$defs/Horizon"
     },
+    "resolution": {
+      "anyOf": [
+        {
+          "enum": [
+            "PT1M",
+            "PT1H",
+            "P1D",
+            "P1M"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolution"
+    },
     "from": {
       "format": "date-time",
       "title": "From",

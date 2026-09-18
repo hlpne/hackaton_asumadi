@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Annotated
 
@@ -9,7 +10,7 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from starlette.exceptions import HTTPException
 
 from app.catalog import Catalog, MemoryCatalog, PostgresCatalog
-from app.config import Settings
+from app.config import ROOT, Settings
 from app.forecast_service import (
     InvalidPredictionError,
     PredictorUnavailableError,
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     application.state.settings = config
     application.state.predictor = predictor if predictor is not None else load_predictor(config.predictor_factory)
     store = catalog if catalog is not None else (PostgresCatalog(config) if config.catalog_backend == "postgres" else MemoryCatalog())
+    geometry_data = json.loads((ROOT / "mock_data" / "osm_trams.json").read_text(encoding="utf-8"))
 
     @application.exception_handler(RequestValidationError)
     async def bad_request(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -134,6 +136,24 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     def stops(route_id: str) -> list[RouteStop]:
         ensure_route(route_id)
         return store.stops(route_id)
+
+    @application.get("/routes/{route_id}/geometry", tags=["catalog"])
+    def route_geometry(route_id: str, direction_id: Annotated[int, Query(ge=0, le=1)] = 0) -> dict:
+        """OSM track geometry, distinct from the synthetic load forecast."""
+        ensure_route(route_id)
+        route = next((item for item in geometry_data["routes"] if item["id"] == route_id), None)
+        if route is None:
+            raise HTTPException(404, "Route geometry not found")
+        direction = route["directions"][direction_id]
+        return {
+            "route_id": route_id,
+            "direction_id": direction_id,
+            "source": geometry_data["source"],
+            "license": geometry_data["license"],
+            "attribution_url": geometry_data["attribution_url"],
+            "osm_relation_id": direction["relation_id"],
+            "lines": direction["lines"],
+        }
 
     @application.get("/forecast", response_model=ForecastResponse, tags=["forecast"])
     def forecast(query: Annotated[ForecastRequest, Query()], provider: Annotated[Predictor, Depends(get_predictor)]) -> ForecastResponse:

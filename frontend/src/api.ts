@@ -3,11 +3,11 @@ import type {
   ForecastResponse,
   MapForecastResponse,
   Route,
+  RouteGeometry,
   RouteStop,
   SnapshotRequest,
   TopOverloadResponse,
 } from "./types";
-import { mockForecast, mockRoutes, mockStopsForRoute } from "./mock/mockData";
 
 async function read<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api${path}`, { signal });
@@ -28,29 +28,18 @@ function queryString(request: Record<string, unknown>): string {
 }
 
 export async function getRoutes(signal?: AbortSignal): Promise<Route[]> {
-  try {
-    return await read<Route[]>("/routes", signal);
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    console.warn("[api] backend недоступен, используем mock routes", error);
-    return mockRoutes;
-  }
+  return read<Route[]>("/routes", signal);
 }
 
 export async function getStops(
   route: string,
   signal?: AbortSignal
 ): Promise<RouteStop[]> {
-  try {
-    return await read<RouteStop[]>(
-      `/routes/${encodeURIComponent(route)}/stops`,
-      signal
-    );
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    console.warn("[api] backend недоступен, используем mock stops", error);
-    return mockStopsForRoute(route);
-  }
+  return read<RouteStop[]>(`/routes/${encodeURIComponent(route)}/stops`, signal);
+}
+
+export async function getRouteGeometry(route: string, directionId: 0 | 1, signal?: AbortSignal): Promise<RouteGeometry> {
+  return read<RouteGeometry>(`/routes/${encodeURIComponent(route)}/geometry?direction_id=${directionId}`, signal);
 }
 
 export async function getForecast(
@@ -58,13 +47,7 @@ export async function getForecast(
   signal?: AbortSignal
 ): Promise<ForecastResponse> {
   const parameters = queryString(request as unknown as Record<string, unknown>);
-  try {
-    return await read<ForecastResponse>(`/forecast?${parameters}`, signal);
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    console.warn("[api] backend недоступен, используем mock forecast", error);
-    return mockForecast(request.route_id, request.stop_id, request.horizon);
-  }
+  return read<ForecastResponse>(`/forecast?${parameters}`, signal);
 }
 
 

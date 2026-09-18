@@ -44,7 +44,10 @@ services:
       timeout: 5s
       retries: 6
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
     ports:
       - "127.0.0.1:5173:80"
     depends_on:

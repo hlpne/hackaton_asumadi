@@ -338,6 +338,93 @@
         }
       }
     },
+    "/routes/{route_id}/geometry": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Route Geometry",
+        "description": "OSM track geometry, distinct from the synthetic load forecast.",
+        "operationId": "route_geometry_routes__route_id__geometry_get",
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Route Id"
+            }
+          },
+          {
+            "name": "direction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1,
+              "minimum": 0,
+              "default": 0,
+              "title": "Direction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Route Geometry Routes  Route Id  Geometry Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
     "/forecast": {
       "get": {
         "tags": [
@@ -399,6 +486,28 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/Horizon"
+            }
+          },
+          {
+            "name": "resolution",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "PT1M",
+                    "PT1H",
+                    "P1D",
+                    "P1M"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resolution"
             }
           },
           {
@@ -894,6 +1003,7 @@
           "resolution": {
             "type": "string",
             "enum": [
+              "PT1M",
               "PT1H",
               "P1D",
               "P1M"
@@ -948,7 +1058,7 @@
               "$ref": "#/components/schemas/ForecastPoint"
             },
             "type": "array",
-            "maxItems": 744,
+            "maxItems": 1440,
             "minItems": 1,
             "title": "Points"
           }

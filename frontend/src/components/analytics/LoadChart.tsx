@@ -15,22 +15,20 @@ interface LoadChartProps {
 }
 
 const LABELS: Record<string, string> = {
-  predicted_load: "Прогноз",
-  lower_bound: "Нижняя граница",
-  upper_bound: "Верхняя граница",
+  predicted_load: "Индекс загрузки",
+  lower_bound: "Минимальная оценка",
+  upper_bound: "Максимальная оценка",
 };
 
 function formatTick(ts: string, horizon: Horizon): string {
   const d = new Date(ts);
   if (horizon === "day") {
-    return `${d.getHours().toString().padStart(2, "0")}:00`;
+    return d.toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
   }
   if (horizon === "month") {
-    return `${d.getDate().toString().padStart(2, "0")}.${(d.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}`;
+    return d.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit" });
   }
-  return d.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow", month: "short", year: "2-digit" });
 }
 
 export function LoadChart({ forecast }: LoadChartProps) {

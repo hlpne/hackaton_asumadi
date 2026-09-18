@@ -1,6 +1,5 @@
-// Mock-данные для demo mode (см. раздел 12 документа проекта).
-// Используются автоматически, когда backend недоступен.
-// Детерминированный seed — одинаковые данные при каждом запуске.
+// Legacy browser-only demo fixtures. The running app now reads catalog and forecasts
+// exclusively from backend API; keep these fixtures only for isolated examples.
 
 import type {
   ForecastResponse,

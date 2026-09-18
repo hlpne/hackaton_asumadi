@@ -36,9 +36,15 @@ export function ForecastTable({ forecast }: ForecastTableProps) {
           {forecast.points.map((point) => (
             <tr key={point.timestamp}>
               <td>{formatter.format(new Date(point.timestamp))}</td>
-              <td>{number.format(point.predicted_load)}</td>
-              <td>{point.lower_bound === null ? "—" : number.format(point.lower_bound)}</td>
-              <td>{point.upper_bound === null ? "—" : number.format(point.upper_bound)}</td>
+              {forecast.is_mock && forecast.horizon === "day" && point.predicted_load === 0 ? (
+                <><td>Нет рейсов (демо)</td><td>—</td><td>—</td></>
+              ) : (
+                <>
+                  <td>{number.format(point.predicted_load)}</td>
+                  <td>{point.lower_bound === null ? "—" : number.format(point.lower_bound)}</td>
+                  <td>{point.upper_bound === null ? "—" : number.format(point.upper_bound)}</td>
+                </>
+              )}
             </tr>
           ))}
         </tbody>

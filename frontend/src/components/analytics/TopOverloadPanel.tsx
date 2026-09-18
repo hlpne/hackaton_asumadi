@@ -29,9 +29,11 @@ function classify(load: number, maxLoad: number): RankedPoint["level"] {
 export function TopOverloadPanel({ points }: TopOverloadPanelProps) {
   if (points.length === 0) return null;
 
-  const maxLoad = Math.max(...points.map((p) => p.predicted_load));
+  const activePoints = points.filter((point) => point.predicted_load > 0);
+  if (!activePoints.length) return <div className="top-panel"><h3 className="chart-title">Top-5 перегруженных интервалов</h3><p>Нет интервалов с положительной загрузкой.</p></div>;
+  const maxLoad = Math.max(...activePoints.map((p) => p.predicted_load));
 
-  const ranked: RankedPoint[] = points
+  const ranked: RankedPoint[] = activePoints
     .map((p) => ({
       rank: 0,
       timestamp: p.timestamp,

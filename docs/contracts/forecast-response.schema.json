@@ -113,6 +113,7 @@
     },
     "resolution": {
       "enum": [
+        "PT1M",
         "PT1H",
         "P1D",
         "P1M"
@@ -168,7 +169,7 @@
       "items": {
         "$ref": "#/$defs/ForecastPoint"
       },
-      "maxItems": 744,
+      "maxItems": 1440,
       "minItems": 1,
       "title": "Points",
       "type": "array"

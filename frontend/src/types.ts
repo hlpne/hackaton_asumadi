@@ -2,11 +2,21 @@
 export type Horizon = "day" | "month" | "year";
 export interface Route { id: string; name: string; color: string }
 export interface RouteStop { id: string; name: string; lat: number; lon: number; sequence: number; direction_id: 0 | 1 }
+export interface RouteGeometry {
+  route_id: string;
+  direction_id: 0 | 1;
+  source: string;
+  license: string;
+  attribution_url: string;
+  osm_relation_id: number;
+  lines: Array<Array<[number, number]>>; // OSM/GeoJSON and Yandex use [lon, lat].
+}
 export interface ForecastRequest {
   route_id: string;
   stop_id?: string;
   direction_id?: 0 | 1;
   horizon: Horizon;
+  resolution?: "PT1M" | "PT1H" | "P1D" | "P1M";
   from: string;
   to: string;
   forecast_origin?: string;
@@ -21,7 +31,7 @@ export interface ForecastResponse {
   contract_version: "1.0";
   series_key: { route_id: string; stop_id: string | null; direction_id: 0 | 1 | null };
   horizon: Horizon;
-  resolution: "PT1H" | "P1D" | "P1M";
+  resolution: "PT1M" | "PT1H" | "P1D" | "P1M";
   forecast_origin: string;
   value_unit: string;
   aggregation: "demo_mean" | "sum" | "mean" | "max" | "last";

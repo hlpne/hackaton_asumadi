@@ -1,0 +1,7 @@
+{
+  "note": "Illustrative operating window, not an official timetable or stop-level departures.",
+  "timezone": "Europe/Moscow",
+  "default": { "start": "05:00", "end": "01:00" },
+  "routes": {},
+  "stops": {}
+}

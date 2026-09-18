@@ -7,6 +7,7 @@ export const horizons: Record<Horizon, string> = {
 };
 
 export const resolutions: Record<string, string> = {
+  PT1M: "1 минута",
   PT1H: "1 час",
   P1D: "1 день",
   P1M: "1 месяц",

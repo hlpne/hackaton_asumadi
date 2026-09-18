@@ -1,13 +1,13 @@
 """Second synthetic provider to verify replacement without frontend changes."""
 
-from app.schemas import ForecastPoint, ForecastRequest, ForecastResponse, RESOLUTIONS, SeriesKey
+from app.schemas import ForecastPoint, ForecastRequest, ForecastResponse, SeriesKey
 
 
 class ConstantPredictor:
     def predict(self, request: ForecastRequest) -> ForecastResponse:
         return ForecastResponse(
             series_key=SeriesKey(route_id=request.route_id, stop_id=request.stop_id, direction_id=request.direction_id),
-            horizon=request.horizon, resolution=RESOLUTIONS[request.horizon],
+            horizon=request.horizon, resolution=request.resolution,
             forecast_origin=request.forecast_origin,
             value_unit="demo_index", aggregation="demo_mean", is_mock=True,
             model_version="constant-demo-v0",

@@ -194,8 +194,8 @@ docker compose exec -T db sh /opt/transport/db/scripts/manage.sh check
 
 1. Сервис `db` запущен и имеет статус `healthy`.
 2. `status` показывает PostgreSQL 16 и четыре таблицы.
-3. На **новой** БД: `routes=3`, `stops=24`, `route_stops=48`, `forecasts=648`.
-   Прогнозы покрывают 24 часа для трёх маршрутов и каждой из 24 остановок.
+3. На **новой** БД: `routes=36`, `stops=2132`, `route_stops=2132`, `forecasts=52032`.
+   Прогнозы покрывают 24 часа для 36 маршрутов и каждой из 2132 остановок-площадок.
 4. `check` выводит сообщения `PASS`, затем `ROLLBACK` и `DB_CHECK_OK`.
 
 Код завершения последней команды:

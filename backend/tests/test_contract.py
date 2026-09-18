@@ -24,10 +24,37 @@ def client():
 
 def test_catalog_and_health(client):
     assert client.get("/health").json()["database"] == "disabled"
-    assert len(client.get("/routes").json()) == 3
+    assert len(client.get("/routes").json()) == 36
     stops = client.get("/routes/demo-17/stops").json()
-    assert len(stops) == 16
-    assert [(item["direction_id"], item["sequence"]) for item in stops] == [(d, s) for d in (0, 1) for s in range(8)]
+    assert len(stops) == 52
+    assert [(item["direction_id"], item["sequence"]) for item in stops] == [(d, s) for d in (0, 1) for s in range(26)]
+    assert stops[0]["name"] == "Усадьба Останкино"
+
+
+def test_osm_route_geometry(client):
+    response = client.get("/routes/demo-17/geometry")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["osm_relation_id"] == 540033
+    assert data["source"] == "OpenStreetMap contributors"
+    assert len(data["lines"]) > 40
+    assert all(len(line) >= 2 for line in data["lines"])
+    assert client.get("/routes/demo-17/geometry", params={"direction_id": 1}).json()["osm_relation_id"] == 540139
+
+
+def test_all_scheme_routes_have_two_directions_and_geometry(client):
+    routes = client.get("/routes").json()
+    assert len(routes) == 36
+    for route in routes:
+        route_id = route["id"]
+        stops = client.get(f"/routes/{route_id}/stops").json()
+        for direction in (0, 1):
+            direction_stops = [stop for stop in stops if stop["direction_id"] == direction]
+            assert len(direction_stops) >= 8, route_id
+            assert [stop["sequence"] for stop in direction_stops] == list(range(len(direction_stops)))
+            geometry = client.get(f"/routes/{route_id}/geometry", params={"direction_id": direction})
+            assert geometry.status_code == 200, route_id
+            assert geometry.json()["lines"], route_id
 
 
 @pytest.mark.parametrize("horizon,start,end,count", [
@@ -48,11 +75,60 @@ def test_horizons_and_calendar(client, horizon, start, end, count):
     assert client.get("/forecast", params=query).json() == response.json()
 
 
+def test_day_range_accepts_hours_and_minutes(client):
+    response = client.get("/forecast", params=DAY | {
+        "from": "2026-09-26T07:25:00+03:00",
+        "to": "2026-09-26T11:43:00+03:00",
+    })
+    assert response.status_code == 200, response.text
+    points = response.json()["points"]
+    assert [point["timestamp"] for point in points] == [
+        f"2026-09-26T{hour:02d}:25:00+03:00" for hour in range(7, 12)
+    ]
+
+
+def test_day_can_return_one_point_per_minute(client):
+    response = client.get("/forecast", params=DAY | {
+        "resolution": "PT1M",
+        "from": "2026-09-26T07:25:00+03:00",
+        "to": "2026-09-26T07:30:00+03:00",
+    })
+    assert response.status_code == 200, response.text
+    assert response.json()["resolution"] == "PT1M"
+    assert [point["timestamp"] for point in response.json()["points"]] == [
+        f"2026-09-26T07:{minute:02d}:00+03:00" for minute in range(25, 30)
+    ]
+
+
+def test_minute_resolution_only_applies_to_day(client):
+    response = client.get("/forecast", params=DAY | {
+        "horizon": "month", "resolution": "PT1M",
+        "from": "2026-09-01T00:00:00+03:00", "to": "2026-10-01T00:00:00+03:00",
+    })
+    assert response.status_code == 422
+
+
+def test_mock_service_window_has_no_night_load(client):
+    response = client.get("/forecast", params=DAY)
+    assert response.status_code == 200, response.text
+    loads = {point["timestamp"][11:16]: point["predicted_load"] for point in response.json()["points"]}
+    assert loads["00:00"] > 0  # Last evening trips may run after midnight.
+    assert all(loads[f"{hour:02d}:00"] == 0 for hour in range(1, 5))
+    assert loads["05:00"] > 0
+    night = client.get("/forecast", params=DAY | {
+        "from": "2026-09-26T02:10:00+03:00",
+        "to": "2026-09-26T04:50:00+03:00",
+    })
+    assert night.status_code == 200, night.text
+    assert all(point["predicted_load"] == point["lower_bound"] == point["upper_bound"] == 0
+               for point in night.json()["points"])
+
+
 @pytest.mark.parametrize("change", [
     {"to": "2026-09-26T00:00:00+03:00"},
     {"to": "2026-09-28T00:00:00+03:00"},
     {"from": "2026-09-26T00:00:00"},
-    {"from": "2026-09-26T00:15:00+03:00"},
+    {"from": "2026-09-26T00:15:30+03:00"},
     {"horizon": "week"},
     {"stop_id": ""},
     {"direction_id": 2},

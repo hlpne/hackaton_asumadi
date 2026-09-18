@@ -37,12 +37,17 @@ class ForecastRequest(ContractModel):
     stop_id: str | None = Field(default=None, min_length=1, max_length=100)
     direction_id: DirectionId | None = None
     horizon: Horizon
+    resolution: Literal["PT1M", "PT1H", "P1D", "P1M"] | None = None
     start: AwareDatetime = Field(alias="from")
     end: AwareDatetime = Field(alias="to")
     forecast_origin: AwareDatetime | None = None
 
     @model_validator(mode="after")
     def validate_range(self) -> Self:
+        self.resolution = self.resolution or RESOLUTIONS[self.horizon]
+        allowed = {Horizon.DAY: {"PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
+        if self.resolution not in allowed[self.horizon]:
+            raise ValueError("resolution does not match horizon")
         self.start = self.start.astimezone(MOSCOW)
         self.end = self.end.astimezone(MOSCOW)
         self.forecast_origin = (self.forecast_origin or self.start).astimezone(MOSCOW)
@@ -53,8 +58,10 @@ class ForecastRequest(ContractModel):
         if self.forecast_origin > self.start:
             raise ValueError("forecast_origin must be no later than from")
         for value in (self.start, self.end):
-            if value.minute or value.second or value.microsecond:
-                raise ValueError("from and to must be on whole-hour boundaries in Europe/Moscow")
+            if value.second or value.microsecond:
+                raise ValueError("from and to must be on whole-minute boundaries in Europe/Moscow")
+            if self.horizon != Horizon.DAY and value.minute:
+                raise ValueError("month/year boundaries must be on whole-hour boundaries in Europe/Moscow")
             if self.horizon != Horizon.DAY and value.hour:
                 raise ValueError("month/year boundaries must be at midnight in Europe/Moscow")
             if self.horizon == Horizon.YEAR and value.day != 1:
@@ -76,7 +83,8 @@ class ForecastRequest(ContractModel):
             if self.horizon == Horizon.YEAR:
                 current = add_months(current, 1)
             else:
-                current += timedelta(hours=1) if self.horizon == Horizon.DAY else timedelta(days=1)
+                current += (timedelta(minutes=1) if self.resolution == "PT1M" else
+                            timedelta(hours=1) if self.horizon == Horizon.DAY else timedelta(days=1))
         return result
 
 
@@ -106,19 +114,20 @@ class ForecastResponse(ContractModel):
     contract_version: Literal["1.0"] = "1.0"
     series_key: SeriesKey
     horizon: Horizon
-    resolution: Literal["PT1H", "P1D", "P1M"]
+    resolution: Literal["PT1M", "PT1H", "P1D", "P1M"]
     forecast_origin: AwareDatetime
     value_unit: str = Field(min_length=1)
     aggregation: Literal["demo_mean", "sum", "mean", "max", "last"]
     is_mock: bool
     model_version: str = Field(min_length=1)
     interval_level: float | None = Field(default=None, gt=0, lt=1)
-    points: list[ForecastPoint] = Field(min_length=1, max_length=744)
+    points: list[ForecastPoint] = Field(min_length=1, max_length=1440)
 
     @model_validator(mode="after")
     def validate_metadata(self) -> Self:
         self.forecast_origin = self.forecast_origin.astimezone(MOSCOW)
-        if self.resolution != RESOLUTIONS[self.horizon]:
+        allowed = {Horizon.DAY: {"PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
+        if self.resolution not in allowed[self.horizon]:
             raise ValueError("resolution does not match horizon in contract v1")
         if self.interval_level is not None and any(p.lower_bound is None for p in self.points):
             raise ValueError("interval_level requires bounds for every point")
@@ -143,8 +152,10 @@ class SnapshotRequest(ContractModel):
             raise ValueError("Supported date range is 2000–2100")
         if self.forecast_origin > self.timestamp:
             raise ValueError("forecast_origin must be no later than timestamp")
-        if self.timestamp.minute or self.timestamp.second or self.timestamp.microsecond:
-            raise ValueError("timestamp must be on a whole-hour boundary in Europe/Moscow")
+        if self.timestamp.second or self.timestamp.microsecond:
+            raise ValueError("timestamp must be on a whole-minute boundary in Europe/Moscow")
+        if self.horizon != Horizon.DAY and self.timestamp.minute:
+            raise ValueError("month/year timestamp must be on a whole-hour boundary in Europe/Moscow")
         if self.horizon != Horizon.DAY and self.timestamp.hour:
             raise ValueError("month/year timestamp must be at midnight in Europe/Moscow")
         if self.horizon == Horizon.YEAR and self.timestamp.day != 1:

@@ -9,6 +9,7 @@ from app.predictors.base import Predictor, validate_prediction
 from app.schemas import (
     ForecastRequest,
     ForecastResponse,
+    Horizon,
     MapForecastPoint,
     MapForecastResponse,
     OverloadItem,
@@ -105,8 +106,11 @@ def snapshot(catalog: Catalog, provider: Predictor, query: SnapshotRequest) -> M
 
 
 def top_overload(map_response: MapForecastResponse, limit: int) -> TopOverloadResponse:
+    candidates = map_response.points
+    if map_response.is_mock and map_response.horizon == Horizon.DAY:
+        candidates = [point for point in candidates if point.predicted_load > 0]
     ranked = sorted(
-        map_response.points,
+        candidates,
         key=lambda point: (-point.predicted_load, point.route_id, point.direction_id, point.sequence),
     )[:limit]
     return TopOverloadResponse(
