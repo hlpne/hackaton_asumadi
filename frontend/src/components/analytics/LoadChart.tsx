@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Legend,
   ResponsiveContainer,
+  ReferenceArea,
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
 
@@ -38,15 +39,28 @@ export function LoadChart({ forecast }: LoadChartProps) {
     lower_bound: p.lower_bound,
     upper_bound: p.upper_bound,
   }));
+  const chartMax = Math.ceil(Math.max(70, ...forecast.points.map((point) => point.upper_bound ?? point.predicted_load)) / 10) * 10;
 
   return (
     <div className="chart-wrapper">
-      <h3 className="chart-title">Динамика прогноза</h3>
-      <ResponsiveContainer width="100%" height={280}>
+      <div className="chart-header">
+        <h3 className="chart-title">Динамика прогноза</h3>
+        {forecast.value_unit === "demo_index" && (
+          <p className="chart-subtitle">Зоны демонстрационного индекса: низкая до 35, средняя 35–54, высокая от 55.</p>
+        )}
+      </div>
+      <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
+          {forecast.value_unit === "demo_index" && (
+            <>
+              <ReferenceArea y1={0} y2={35} fill="#27825d" fillOpacity={0.08} stroke="none" />
+              <ReferenceArea y1={35} y2={55} fill="#d28a1e" fillOpacity={0.08} stroke="none" />
+              <ReferenceArea y1={55} y2={chartMax} fill="#d9444b" fillOpacity={0.08} stroke="none" />
+            </>
+          )}
           <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8} />
-          <YAxis stroke="#536177" fontSize={12} tickMargin={4} />
+          <YAxis stroke="#536177" fontSize={12} tickMargin={4} domain={[0, chartMax]} />
           <Tooltip
             contentStyle={{
               background: "#fff",

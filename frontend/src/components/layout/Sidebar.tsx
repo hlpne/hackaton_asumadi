@@ -17,6 +17,8 @@ interface SidebarProps {
   toStopId: string;
   horizon: Horizon;
   date: string;
+  dateFrom: string;
+  dateTo: string;
   startTime: string;
   endTime: string;
   busy: boolean;
@@ -27,6 +29,8 @@ interface SidebarProps {
   onToStopChange: (id: string) => void;
   onHorizonChange: (horizon: Horizon) => void;
   onDateChange: (date: string) => void;
+  onDateFromChange: (date: string) => void;
+  onDateToChange: (date: string) => void;
   onStartTimeChange: (time: string) => void;
   onEndTimeChange: (time: string) => void;
   onRefresh: () => void;
@@ -40,6 +44,8 @@ export function Sidebar({
   toStopId,
   horizon,
   date,
+  dateFrom,
+  dateTo,
   startTime,
   endTime,
   busy,
@@ -50,6 +56,8 @@ export function Sidebar({
   onToStopChange,
   onHorizonChange,
   onDateChange,
+  onDateFromChange,
+  onDateToChange,
   onStartTimeChange,
   onEndTimeChange,
   onRefresh,
@@ -130,17 +138,24 @@ export function Sidebar({
         </select>
       </label>
 
-      <label>
-        Дата начала
-        <input
-          type="date"
-          min="2000-01-01"
-          max="2098-12-31"
-          value={date}
-          onChange={(event) => onDateChange(event.target.value)}
-          required
-        />
-      </label>
+      {horizon === "month" ? (
+        <label className="period-label">
+          Период
+          <div className="period-fields">
+            <input type="date" min="2000-01-01" max="2098-12-31" value={dateFrom}
+              onChange={(event) => onDateFromChange(event.target.value)} aria-label="Начало периода" required />
+            <span className="period-sep">—</span>
+            <input type="date" min="2000-01-01" max="2098-12-31" value={dateTo}
+              onChange={(event) => onDateToChange(event.target.value)} aria-label="Конец периода" required />
+          </div>
+        </label>
+      ) : (
+        <label>
+          Дата начала
+          <input type="date" min="2000-01-01" max="2098-12-31" value={date}
+            onChange={(event) => onDateChange(event.target.value)} required />
+        </label>
+      )}
 
       {horizon === "day" && (
         <>
@@ -176,7 +191,7 @@ export function Sidebar({
       <button
         type="button"
         onClick={onRefresh}
-        disabled={!routeId || !date || invalidTimeRange || busy || loadingStops}
+        disabled={!routeId || !date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || invalidTimeRange || busy || loadingStops}
       >
         {busy ? "Загрузка…" : "Повторить"}
       </button>
@@ -186,7 +201,9 @@ export function Sidebar({
           ? "Время «До» должно быть позже времени «С» в пределах выбранного дня."
           : horizon === "day"
             ? "Часы и минуты выбираются отдельно. Точки графика соответствуют фактическим прибытиям по расписанию в выбранном интервале."
-            : "Фильтры применяются автоматически. Для месяца и года период начинается с первого числа выбранного месяца."}
+            : horizon === "month"
+              ? "Укажите период не длиннее одного месяца."
+              : "Фильтры применяются автоматически. Для года период начинается с первого числа выбранного месяца."}
       </p>
     </section>
   );
