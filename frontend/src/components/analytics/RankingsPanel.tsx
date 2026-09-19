@@ -43,10 +43,10 @@ export function RankingsPanel({ networkData, networkBusy, networkError, onSelect
         <time dateTime={networkData.timestamp}>{timestampFormatter.format(new Date(networkData.timestamp))} МСК</time>
       </div>
       <div className="network-metrics">
-        <article><span className="network-metric-icon"><TramIcon weight="bold" aria-hidden="true" /></span><div className="network-metric-copy"><span>Маршрутов</span><strong>{routes.length}</strong></div></article>
-        <article><span className="network-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="network-metric-copy"><span>Остановок по направлениям</span><strong>{networkData.points.length}</strong></div></article>
-        <article><span className="network-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="network-metric-copy"><span>Средний индекс маршрута</span><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></div></article>
-        <article><span className="network-metric-icon"><TrophyIcon weight="bold" aria-hidden="true" /></span><div className="network-metric-copy"><span>Первый в рейтинге</span><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name : "Нет нагрузки в срезе"}</strong></div></article>
+        <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
+        <article><div className="network-metric-heading"><MapPinIcon weight="fill" aria-hidden="true" /><span>Остановок по направлениям</span></div><strong>{networkData.points.length}</strong></article>
+        <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний индекс маршрута</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
+        <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Первый в рейтинге</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name : "Нет нагрузки в срезе"}</strong></article>
       </div>
 
       <section className="network-comparison" aria-labelledby="network-comparison-title">

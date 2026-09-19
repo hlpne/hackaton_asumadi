@@ -57,6 +57,32 @@ export function HomePage({ onNavigate }: HomePageProps) {
         </div>
       </section>
 
+      <section className="home-explore" aria-labelledby="home-explore-title">
+        <div className="home-section-heading">
+          <p className="eyebrow">ИССЛЕДОВАТЬ ДАННЫЕ</p>
+          <h2 id="home-explore-title">Выберите масштаб просмотра</h2>
+          <p>Начните с отдельного маршрута или посмотрите, как распределяется ожидаемая нагрузка по всей сети.</p>
+        </div>
+        <div className="home-explore-grid">
+          <article className="home-explore-card">
+            <MapPinIcon weight="fill" aria-hidden="true" />
+            <div>
+              <h3>Один маршрут</h3>
+              <p>Остановки на карте, направление и прогноз для выбранного времени.</p>
+              <button type="button" className="home-explore-link" onClick={() => onNavigate("details")}>Открыть детализацию <span aria-hidden="true">→</span></button>
+            </div>
+          </article>
+          <article className="home-explore-card">
+            <ChartBarIcon weight="bold" aria-hidden="true" />
+            <div>
+              <h3>Вся сеть</h3>
+              <p>Сравнение маршрутов, рейтинги остановок и общие показатели.</p>
+              <button type="button" className="home-explore-link" onClick={() => onNavigate("analytics")}>Открыть аналитику <span aria-hidden="true">→</span></button>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <section className="home-model" aria-labelledby="model-title">
         <div>
           <p className="eyebrow">О МОДЕЛИ</p>

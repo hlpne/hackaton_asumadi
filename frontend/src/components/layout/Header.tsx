@@ -17,10 +17,11 @@ const links: Array<{ page: Page; label: string }> = [
 export function Header({ page, onNavigate, stage = "Прототип команды · v0.1" }: HeaderProps) {
   return (
     <header className="topbar">
-      <span className="wordmark">
+      <a href="#home" className="wordmark" aria-label="Трамвай / Прогноз — на главную"
+        onClick={(event) => { event.preventDefault(); onNavigate("home"); }}>
         <TramIcon size={22} weight="bold" aria-hidden="true" />
         <span>ТРАМВАЙ<span className="accent"> / </span>ПРОГНОЗ</span>
-      </span>
+      </a>
       <nav className="main-nav" aria-label="Разделы приложения">
         {links.map((link) => (
           <a key={link.page} href={`#${link.page}`}
