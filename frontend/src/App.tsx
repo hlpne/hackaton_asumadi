@@ -5,8 +5,7 @@ import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MapView } from "./components/map/MapView";
 import { LoadChart } from "./components/analytics/LoadChart";
-import { TopOverloadPanel } from "./components/analytics/TopOverloadPanel";
-import { NetworkOverview } from "./components/analytics/NetworkOverview";
+import { RankingsPanel } from "./components/analytics/RankingsPanel";
 import { ForecastTable } from "./components/analytics/ForecastTable";
 import { horizons, resolutions } from "./constants";
 import { buildRouteSegment } from "./routeSegment";
@@ -283,26 +282,14 @@ export default function App() {
           </p>
         )}
 
-        <TopOverloadPanel
-          data={topOverload}
-          busy={busy}
-          error={topError}
+        <RankingsPanel
+          routeData={topOverload}
+          routeBusy={busy}
+          routeError={topError}
+          networkData={networkForecast}
+          networkBusy={networkBusy}
+          networkError={networkError}
           routeName={routes.find((route) => route.id === routeId)?.name ?? ""}
-          selectedPoint={focusedPoint}
-          onSelect={(point) => {
-            setFocusedPoint(point);
-            setFromStopId("");
-            setToStopId("");
-            setRouteId(point.route_id);
-            mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          onRetry={() => setRetry((value) => value + 1)}
-        />
-
-        <NetworkOverview
-          data={networkForecast}
-          busy={networkBusy}
-          error={networkError}
           selectedRouteId={routeId}
           selectedPoint={focusedPoint}
           onSelectRoute={(id) => {
