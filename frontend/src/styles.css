@@ -162,7 +162,7 @@ a { color: #173f71; text-underline-offset: .2em; }
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
-.top-item:hover, .top-item:focus-visible { background: #eaf1fa; color: #17263c; }
+button.top-item:hover:not(:disabled), button.top-item:focus-visible { background: #eaf1fa; color: #17263c; }
 .top-item--selected { border-color: #2671c2; box-shadow: inset 4px 0 #2671c2; background: #eaf1fa; }
 .top-place { display: grid; gap: .25rem; min-width: 0; }
 .top-place strong { overflow-wrap: anywhere; }

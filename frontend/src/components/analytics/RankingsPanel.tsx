@@ -38,7 +38,7 @@ function StopRow({ point, selected, onSelect }: { point: RankedStop; selected: b
       aria-pressed={selected}
       aria-label={`Показать на карте: ${point.stop_name}, ${point.route_name}, место ${point.rank}, индекс ${valueFormatter.format(point.predicted_load)}`}
       onClick={() => onSelect(point)}>
-      <span className="top-rank">#{point.rank}</span>
+      <span className="top-rank">{point.rank}</span>
       <span className="top-place"><strong>{point.stop_name}</strong><small>{point.route_name} · направление {point.direction_id + 1}</small></span>
       <span className="top-load"><small>Индекс</small>{valueFormatter.format(point.predicted_load)}</span>
     </button>
@@ -102,7 +102,7 @@ export function RankingsPanel({
               aria-pressed={selectedRouteId === route.id}
               aria-label={`Выбрать ${route.name}, место ${route.rank}, средний индекс ${valueFormatter.format(route.averageLoad)}`}
               onClick={() => onSelectRoute(route.id)}>
-              <span className="top-rank">#{route.rank}</span>
+              <span className="top-rank">{route.rank}</span>
               <span className="top-place"><strong>{route.name}</strong><small>{route.stopCount} остановок по двум направлениям</small></span>
               <span className="top-load"><small>Средний индекс</small>{valueFormatter.format(route.averageLoad)}</span>
             </button>
