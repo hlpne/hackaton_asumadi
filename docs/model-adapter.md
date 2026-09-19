@@ -227,8 +227,8 @@ Linux/macOS:
 .venv/bin/python -m pytest -q
 ```
 
-С CatBoost установленной из `requirements-model-example.txt`: **76 passed**.
-Без опциональной CatBoost: **74 passed, 2 skipped**; пропущены именно два теста
+С CatBoost установленной из `requirements-model-example.txt`: **85 passed**.
+Без опциональной CatBoost: **83 passed, 2 skipped**; пропущены именно два теста
 реальных файлов. Для приёмки `.cbm/.pkl` установите опциональный requirements
 и повторите тесты — пропуски не подтверждают работу этих форматов.
 

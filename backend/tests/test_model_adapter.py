@@ -57,7 +57,7 @@ def test_features_use_moscow_time_and_preserve_series_identity():
     assert literal[1] != missing[1]
 
 
-@pytest.mark.parametrize("values", [[], [1.0] * 23, [1.0] * 25, [-1.0] * 24,
+@pytest.mark.parametrize("values", [[], [1.0] * 23, [1.0] * 25,
                                    [float("nan")] * 24, [float("inf")] * 24,
                                    [[1.0]] * 24, [True] * 24, ["1.0"] * 24])
 def test_invalid_model_outputs_are_rejected_at_http_boundary(values):
@@ -69,6 +69,25 @@ def test_invalid_model_outputs_are_rejected_at_http_boundary(values):
         response = client.get("/forecast", params=DAY)
     assert response.status_code == 502
     assert response.json()["error"]["code"] == "INVALID_PREDICTION"
+
+
+def test_negative_model_predictions_are_clamped_and_resolution_is_preserved():
+    class UnconstrainedEstimator:
+        def predict(self, rows):
+            return [-2.5, 3.0, -0.01, 4.0, 5.0]
+
+    provider = ArtifactPredictor(UnconstrainedEstimator(), ArtifactMetadata(**META))
+    with TestClient(create_app(Settings(), predictor=provider)) as client:
+        response = client.get("/forecast", params=DAY | {
+            "resolution": "PT1M",
+            "from": "2026-09-26T08:15:00+03:00",
+            "to": "2026-09-26T08:20:00+03:00",
+        })
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["resolution"] == "PT1M"
+    assert [point["predicted_load"] for point in data["points"]] == [0.0, 3.0, 0.0, 4.0, 5.0]
 
 
 def test_unsupported_model_horizon_is_unavailable_without_mock_fallback():

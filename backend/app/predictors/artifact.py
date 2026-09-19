@@ -6,6 +6,7 @@ Only load pickle files supplied by a trusted model author.
 
 import os
 import pickle
+from math import isfinite
 from numbers import Real
 from pathlib import Path
 from threading import Lock
@@ -15,7 +16,7 @@ from pydantic import Field
 
 from app.schemas import (
     ContractModel, ForecastPoint, ForecastRequest, ForecastResponse, Horizon,
-    RESOLUTIONS, SeriesKey,
+    SeriesKey,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -76,20 +77,26 @@ class ArtifactPredictor:
         # Reject multi-output arrays, strings and booleans instead of coercing them.
         if any(isinstance(value, bool) or not isinstance(value, Real) for value in values):
             raise ValueError("Model predictions must be a one-dimensional numeric sequence")
+        predictions = [float(value) for value in values]
+        if any(not isfinite(value) for value in predictions):
+            raise ValueError("Model predictions must be finite")
+        # The public forecast contract cannot represent negative loads. Keep it
+        # valid when an unconstrained regressor (for example CatBoost RMSE) dips below 0.
+        predictions = [max(0.0, value) for value in predictions]
         return ForecastResponse(
             series_key=SeriesKey(
                 route_id=request.route_id, stop_id=request.stop_id,
                 direction_id=request.direction_id,
             ),
-            horizon=request.horizon, resolution=RESOLUTIONS[request.horizon],
+            horizon=request.horizon, resolution=request.resolution,
             forecast_origin=request.forecast_origin,
             value_unit=self._metadata.value_unit,
             aggregation=self._metadata.aggregation,
             is_mock=self._metadata.is_mock,
             model_version=self._metadata.model_version,
             # A point model does not supply calibrated intervals.
-            points=[ForecastPoint(timestamp=timestamp, predicted_load=float(value))
-                    for timestamp, value in zip(timestamps, values, strict=True)],
+            points=[ForecastPoint(timestamp=timestamp, predicted_load=value)
+                    for timestamp, value in zip(timestamps, predictions, strict=True)],
         )
 
 

@@ -48,7 +48,13 @@ def test_real_artifact_factory_across_all_forecast_views(artifacts, monkeypatch,
             top_response = client.get("/forecast/top-overload", params=params | {"limit": 5})
             assert map_response.status_code == top_response.status_code == 200
             points = map_response.json()["points"]
-            assert len(points) == 8
+            route_stops = client.get("/routes/demo-17/stops")
+            assert route_stops.status_code == 200
+            expected_points = sum(
+                stop["direction_id"] == 0 for stop in route_stops.json()
+            )
+            assert expected_points >= 5
+            assert len(points) == expected_points
             first = points[0]
             series = client.get("/forecast", params=query | {
                 "stop_id": first["stop_id"], "direction_id": 0,
