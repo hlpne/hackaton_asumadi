@@ -255,7 +255,69 @@ PREDICTOR_FACTORY=app.predictors.mock:build_predictor
 docker compose up -d --force-recreate backend
 ```
 
-Будущая реальная модель реализует тот же `Predictor`. Примеры провайдеров находятся в `backend/app/predictors/`; отдельного модуля реальной модели пока нет.
+### Подключить файл модели `.cbm` или `.pkl`
+
+Добавлен `app.predictors.artifact:build_predictor`: загрузка файла, подготовка
+признаков и преобразование результата находятся в одном модуле
+`backend/app/predictors/artifact.py`. Интерфейс остаётся
+`predict(ForecastRequest) -> ForecastResponse`; список точек находится в `points`,
+а метаданные сохраняют единицы измерения, временной шаг и версию модели.
+
+Для воспроизводимой проверки выполните **из корня проекта** после создания
+Python-окружения по разделу 3:
+
+```powershell
+# Windows PowerShell
+.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements-model-example.txt
+.\backend\.venv\Scripts\python.exe backend/scripts/build_example_model.py
+```
+
+```bash
+# Linux/macOS
+backend/.venv/bin/python -m pip install -r backend/requirements-model-example.txt
+backend/.venv/bin/python backend/scripts/build_example_model.py
+```
+
+Ожидается `EXAMPLE_MODEL_OK`. Создаются `models/example.cbm`, `example.pkl`
+и `example.metadata.json`. Это настоящие сериализованные модели CatBoost,
+обученные на синтетике **только для проверки интеграции** (`is_mock=true`).
+ML-зависимости опциональны: обычному mock они не нужны.
+
+Замените настройку в корневом `.env` и добавьте пути:
+
+```dotenv
+PREDICTOR_FACTORY=app.predictors.artifact:build_predictor
+MODEL_PATH=models/example.cbm
+MODEL_METADATA_PATH=models/example.metadata.json
+```
+
+Перезапустите локальный backend командой из раздела 3. В другом терминале
+из корня проверьте непосредственно API:
+
+```powershell
+.\backend\.venv\Scripts\python.exe backend/scripts/check_model_api.py --expected-model catboost-example-v1
+$LASTEXITCODE
+```
+
+```bash
+backend/.venv/bin/python backend/scripts/check_model_api.py --expected-model catboost-example-v1
+echo $?
+```
+
+Ожидаются `MODEL_ADAPTER_OK` и код `0`: проверены три горизонта, карта и Top-N.
+Для проверки `.pkl` замените только `MODEL_PATH=models/example.pkl`, перезапустите
+backend и повторите проверку. Границы интервала у этого примера — `null`.
+
+Для Docker после генерации файлов используйте дополнительную конфигурацию:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.model.yml up -d --build --wait
+```
+
+Для **своего обученного файла** нужны согласованные признаки и JSON-метаданные;
+произвольный файл модели нельзя подключить лишь сменой расширения. Полный пример,
+описание признаков, требования к `.pkl`, возврат к mock, диагностика и команды
+автотестов: [docs/model-adapter.md](docs/model-adapter.md).
 
 ## 7. Команды проверки
 

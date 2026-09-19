@@ -26,3 +26,9 @@ Thumbs.db
 .idea/
 .vscode/
 .sites-runtime/
+# Local model binaries and their metadata are delivered separately from source.
+/models/*
+!/models/README.md
+*.pkl
+*.cbm
+catboost_info/

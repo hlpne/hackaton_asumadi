@@ -1,0 +1,3 @@
+# Optional: only for the executable .cbm/.pkl integration example.
+-r requirements.txt
+catboost==1.2.8
