@@ -6,7 +6,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { MapView } from "./components/map/MapView";
 import { LoadChart } from "./components/analytics/LoadChart";
 import { RankingsPanel } from "./components/analytics/RankingsPanel";
-import { ForecastTable } from "./components/analytics/ForecastTable";
+import { ForecastModal } from "./components/analytics/ForecastModal";
 import { horizons, resolutions } from "./constants";
 import { buildRouteSegment } from "./routeSegment";
 
@@ -41,18 +41,30 @@ function currentMoscowTime(): string {
   return `${part("hour")}:${part("minute")}`;
 }
 
-function dateRange(date: string, horizon: Horizon, startTime: string, endTime: string) {
+function nextMonth(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCMonth(value.getUTCMonth() + 1);
+  return value.toISOString().slice(0, 10);
+}
+
+function dateRange(
+  date: string,
+  horizon: Horizon,
+  startTime: string,
+  endTime: string,
+  dateFrom: string,
+  dateTo: string,
+) {
   if (horizon === "day") {
     return { from: `${date}T${startTime}:00+03:00`, to: `${date}T${endTime}:00+03:00` };
+  }
+  if (horizon === "month") {
+    return { from: `${dateFrom}T00:00:00+03:00`, to: `${dateTo}T00:00:00+03:00` };
   }
   const [year, month] = date.split("-").map(Number);
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(start);
-  if (horizon === "month") {
-    end.setUTCMonth(end.getUTCMonth() + 1);
-  } else {
-    end.setUTCFullYear(end.getUTCFullYear() + 1);
-  }
+  end.setUTCFullYear(end.getUTCFullYear() + 1);
   const moscowTime = (value: Date) => `${value.toISOString().slice(0, 13)}:00:00+03:00`;
   return { from: moscowTime(start), to: moscowTime(end) };
 }
@@ -88,6 +100,8 @@ export default function App() {
   const [forecastStopId, setForecastStopId] = useState("");
   const [horizon, setHorizon] = useState<Horizon>("day");
   const [date, setDate] = useState(currentMoscowDate);
+  const [dateFrom, setDateFrom] = useState(() => `${currentMoscowDate().slice(0, 7)}-01`);
+  const [dateTo, setDateTo] = useState(() => nextMonth(`${currentMoscowDate().slice(0, 7)}-01`));
   const [startTime, setStartTime] = useState(currentMoscowTime);
   const [endTime, setEndTime] = useState("23:59");
   const [retry, setRetry] = useState(0);
@@ -104,6 +118,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingStops, setLoadingStops] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const segment = buildRouteSegment(stops, fromStopId, toStopId);
   const forecastStop = stops.find((stop) => stop.id === forecastStopId);
 
@@ -144,7 +159,7 @@ export default function App() {
   }, [routeId]);
 
   useEffect(() => {
-    if (!routeId || !date || (horizon === "day" &&
+    if (!routeId || !date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || (horizon === "day" &&
       (!validTime(startTime) || !validTime(endTime) || startTime >= endTime))) {
       setForecast(null);
       setMapForecast(null);
@@ -155,13 +170,14 @@ export default function App() {
       return;
     }
     const controller = new AbortController();
-    const range = dateRange(date, horizon, startTime, endTime);
+    const range = dateRange(date, horizon, startTime, endTime, dateFrom, dateTo);
     setBusy(true);
     setError("");
     setForecast(null);
     setMapForecast(null);
     setTopOverload(null);
     setTopError("");
+    setModalOpen(false);
 
     void Promise.allSettled([
       getForecast(
@@ -197,10 +213,10 @@ export default function App() {
     });
 
     return () => controller.abort();
-  }, [routeId, fromStopId, toStopId, forecastStopId, stops, horizon, date, startTime, endTime, retry]);
+  }, [routeId, fromStopId, toStopId, forecastStopId, stops, horizon, date, dateFrom, dateTo, startTime, endTime, retry]);
 
   useEffect(() => {
-    if (!date || (horizon === "day" &&
+    if (!date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || (horizon === "day" &&
       (!validTime(startTime) || !validTime(endTime) || startTime >= endTime))) {
       setNetworkForecast(null);
       setNetworkError("");
@@ -208,7 +224,7 @@ export default function App() {
       return;
     }
     const controller = new AbortController();
-    const range = dateRange(date, horizon, startTime, endTime);
+    const range = dateRange(date, horizon, startTime, endTime, dateFrom, dateTo);
     setNetworkBusy(true);
     setNetworkError("");
     setNetworkForecast(null);
@@ -217,7 +233,7 @@ export default function App() {
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [horizon, date, startTime, endTime, retry]);
+  }, [horizon, date, dateFrom, dateTo, startTime, endTime, retry]);
 
   return (
     <>
@@ -237,6 +253,8 @@ export default function App() {
           toStopId={toStopId}
           horizon={horizon}
           date={date}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
           startTime={startTime}
           endTime={endTime}
           busy={busy}
@@ -259,6 +277,8 @@ export default function App() {
           onToStopChange={(id) => { setFocusedPoint(null); setToStopId(id); }}
           onHorizonChange={(value) => { setFocusedPoint(null); setHorizon(value); }}
           onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
+          onDateFromChange={(value) => { setFocusedPoint(null); setDateFrom(value); }}
+          onDateToChange={(value) => { setFocusedPoint(null); setDateTo(value); }}
           onStartTimeChange={(value) => { setFocusedPoint(null); setStartTime(value); }}
           onEndTimeChange={(value) => { setFocusedPoint(null); setEndTime(value); }}
           onRefresh={() => setRetry((value) => value + 1)}
@@ -364,10 +384,18 @@ export default function App() {
                 </span>
               </div>
               <LoadChart forecast={forecast} />
-              <ForecastTable forecast={forecast} />
+              <div className="result-actions">
+                <button type="button" className="btn-secondary" onClick={() => setModalOpen(true)}>
+                  Показать таблицу
+                </button>
+              </div>
             </>
           )}
         </section>
+
+        {modalOpen && forecast && (
+          <ForecastModal forecast={forecast} onClose={() => setModalOpen(false)} />
+        )}
 
         <footer>
           <span>Контракт прогноза v1 · Москва, UTC+3</span>
