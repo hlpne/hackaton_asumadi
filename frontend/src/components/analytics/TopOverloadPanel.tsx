@@ -15,6 +15,7 @@ const formatter = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow",
   day: "2-digit",
   month: "2-digit",
+  year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -49,10 +50,10 @@ export function TopOverloadPanel({ points }: TopOverloadPanelProps) {
         {ranked.map((item) => (
           <li key={item.timestamp} className={`top-item top-item--${item.level}`}>
             <span className="top-rank">#{item.rank}</span>
-            <span className="top-time">{formatter.format(new Date(item.timestamp))}</span>
-            <span className="top-load">
-              {item.load.toFixed(1)}
+            <span className="top-time">
+              {formatter.format(new Date(item.timestamp))}
             </span>
+            <span className="top-load">{item.load.toFixed(1)} %</span>
           </li>
         ))}
       </ul>

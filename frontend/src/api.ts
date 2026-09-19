@@ -50,6 +50,12 @@ export async function getForecast(
   } catch (error) {
     if (signal?.aborted) throw error;
     console.warn("[api] backend недоступен, используем mock forecast", error);
-    return mockForecast(request.route_id, request.stop_id, request.horizon);
+    return mockForecast(
+      request.route_id,
+      request.stop_id,
+      request.horizon,
+      request.from,
+      request.to
+    );
   }
 }

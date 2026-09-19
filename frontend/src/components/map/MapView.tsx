@@ -1,19 +1,7 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { YMaps, Map, Placemark, Polyline } from "@pbe/react-yandex-maps";
 import type { Route, RouteStop } from "../../types";
 
-// Фикс для иконок Leaflet в Vite (иначе маркеры не отображаются)
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+const API_KEY = import.meta.env.VITE_YANDEX_MAPS_API_KEY;
 
 interface MapViewProps {
   route?: Route;
@@ -29,37 +17,59 @@ export function MapView({ route, stops, selectedStopId }: MapViewProps) {
       ? positions[Math.floor(positions.length / 2)]
       : [55.75, 37.65];
 
+  if (!API_KEY) {
+    return (
+      <div className="map-wrapper">
+        <div className="map-error">
+          Не задан ключ Яндекс.Карт. Проверьте{" "}
+          <code>VITE_YANDEX_MAPS_API_KEY</code> в файле <code>.env</code>.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="map-wrapper">
-      <MapContainer
-        center={center}
-        zoom={12}
-        className="map-container"
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
+      <YMaps query={{ apikey: API_KEY, lang: "ru_RU", load: "package.full" }}>
+        <Map
+          defaultState={{ center, zoom: 12 }}
+          width="100%"
+          height="420px"
+          modules={["geoObject.addon.balloon", "geoObject.addon.hint"]}
+        >
+          {route && positions.length > 1 && (
+            <Polyline
+              geometry={positions}
+              options={{
+                strokeColor: route.color,
+                strokeWidth: 4,
+                strokeOpacity: 0.85,
+              }}
+            />
+          )}
 
-        {route && positions.length > 1 && (
-          <Polyline positions={positions} color={route.color} weight={4} />
-        )}
-
-        {stops.map((stop) => (
-          <Marker
-            key={stop.id}
-            position={[stop.lat, stop.lon]}
-            opacity={selectedStopId && stop.id !== selectedStopId ? 0.5 : 1}
-          >
-            <Popup>
-              <strong>{stop.name}</strong>
-              <br />
-              Остановка №{stop.sequence} · ID {stop.id}
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+          {stops.map((stop) => {
+            const isSelected = stop.id === selectedStopId;
+            return (
+              <Placemark
+                key={stop.id}
+                geometry={[stop.lat, stop.lon]}
+                options={{
+                  preset: isSelected ? "islands#redIcon" : "islands#blueIcon",
+                }}
+                properties={{
+                  hintContent: stop.name,
+                  balloonContent: `
+                    <strong>${stop.name}</strong><br/>
+                    Остановка №${stop.sequence}<br/>
+                    ID: ${stop.id}
+                  `,
+                }}
+              />
+            );
+          })}
+        </Map>
+      </YMaps>
     </div>
   );
 }

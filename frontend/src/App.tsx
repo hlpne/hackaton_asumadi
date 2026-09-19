@@ -6,7 +6,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { MapView } from "./components/map/MapView";
 import { LoadChart } from "./components/analytics/LoadChart";
 import { TopOverloadPanel } from "./components/analytics/TopOverloadPanel";
-import { ForecastTable } from "./components/analytics/ForecastTable";
+import { ForecastModal } from "./components/analytics/ForecastModal";
 import { horizons, resolutions } from "./constants";
 
 const formatter = new Intl.DateTimeFormat("ru-RU", {
@@ -18,16 +18,42 @@ const formatter = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 });
 
-function dateRange(date: string, horizon: Horizon) {
-  const [year, month, day] = date.split("-").map(Number);
-  const start = new Date(Date.UTC(year, month - 1, horizon === "day" ? day : 1));
-  const end = new Date(start);
-  if (horizon === "day") end.setUTCDate(end.getUTCDate() + 1);
-  if (horizon === "month") end.setUTCMonth(end.getUTCMonth() + 1);
-  if (horizon === "year") end.setUTCFullYear(end.getUTCFullYear() + 1);
-  const localMidnight = (value: Date) =>
-    `${value.toISOString().slice(0, 10)}T00:00:00+03:00`;
-  return { from: localMidnight(start), to: localMidnight(end) };
+function toIso(date: Date): string {
+  return `${date.toISOString().slice(0, 10)}T00:00:00+03:00`;
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function addYears(date: string, years: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + years);
+  return d.toISOString().slice(0, 10);
+}
+
+function rangeFor(
+  horizon: Horizon,
+  date: string,
+  dateFrom: string,
+  dateTo: string
+): { from: string; to: string } {
+  if (horizon === "month") {
+    return { from: toIso(new Date(dateFrom)), to: toIso(new Date(dateTo)) };
+  }
+  if (horizon === "day") {
+    return {
+      from: toIso(new Date(date)),
+      to: toIso(new Date(addDays(date, 1))),
+    };
+  }
+  // year
+  return {
+    from: toIso(new Date(date)),
+    to: toIso(new Date(addYears(date, 1))),
+  };
 }
 
 export default function App() {
@@ -37,11 +63,14 @@ export default function App() {
   const [stopId, setStopId] = useState("");
   const [horizon, setHorizon] = useState<Horizon>("day");
   const [date, setDate] = useState("2026-09-26");
+  const [dateFrom, setDateFrom] = useState("2026-09-01");
+  const [dateTo, setDateTo] = useState("2026-10-01");
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingStops, setLoadingStops] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const pending = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -84,10 +113,15 @@ export default function App() {
     setBusy(false);
     setForecast(null);
     setError("");
+    setModalOpen(false);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (horizon === "month" && dateFrom > dateTo) {
+      setError("Дата начала не может быть позже даты конца.");
+      return;
+    }
     pending.current?.abort();
     const controller = new AbortController();
     pending.current = controller;
@@ -95,12 +129,14 @@ export default function App() {
     setError("");
     setForecast(null);
     try {
+      const { from, to } = rangeFor(horizon, date, dateFrom, dateTo);
       const response = await getForecast(
         {
           route_id: routeId,
           stop_id: stopId || undefined,
           horizon,
-          ...dateRange(date, horizon),
+          from,
+          to,
         },
         controller.signal
       );
@@ -132,6 +168,8 @@ export default function App() {
           stopId={stopId}
           horizon={horizon}
           date={date}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
           busy={busy}
           loadingCatalog={loadingCatalog}
           loadingStops={loadingStops}
@@ -151,6 +189,14 @@ export default function App() {
           onDateChange={(value) => {
             invalidate();
             setDate(value);
+          }}
+          onDateFromChange={(value) => {
+            invalidate();
+            setDateFrom(value);
+          }}
+          onDateToChange={(value) => {
+            invalidate();
+            setDateTo(value);
           }}
           onSubmit={submit}
         />
@@ -193,11 +239,6 @@ export default function App() {
                 </div>
                 <span className="version">{forecast.model_version}</span>
               </div>
-              <p className="explanation">
-                {forecast.value_unit === "demo_index"
-                  ? "Условный индекс: эти значения не являются числом пассажиров или процентом заполнения."
-                  : `Единица показателя: ${forecast.value_unit}.`}
-              </p>
               <div className="summary">
                 <span>
                   Точек: <strong>{forecast.points.length}</strong>
@@ -206,25 +247,27 @@ export default function App() {
                   Начало:{" "}
                   <strong>{formatter.format(new Date(forecast.points[0].timestamp))}</strong>
                 </span>
-                <span>
-                  Границы:{" "}
-                  <strong>
-                    {forecast.points.some((point) => point.lower_bound !== null)
-                      ? forecast.interval_level === null
-                        ? forecast.is_mock
-                          ? "иллюстративные"
-                          : "уровень не указан"
-                        : `${forecast.interval_level * 100}%`
-                      : "не переданы"}
-                  </strong>
-                </span>
               </div>
+
               <LoadChart forecast={forecast} />
               <TopOverloadPanel points={forecast.points} />
-              <ForecastTable forecast={forecast} />
+
+              <div className="result-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setModalOpen(true)}
+                >
+                  Показать таблицу
+                </button>
+              </div>
             </>
           )}
         </section>
+
+        {modalOpen && forecast && (
+          <ForecastModal forecast={forecast} onClose={() => setModalOpen(false)} />
+        )}
 
         <footer>
           <span>Контракт прогноза v1 · Москва, UTC+3</span>

@@ -9,6 +9,8 @@ interface SidebarProps {
   stopId: string;
   horizon: Horizon;
   date: string;
+  dateFrom: string;
+  dateTo: string;
   busy: boolean;
   loadingCatalog: boolean;
   loadingStops: boolean;
@@ -16,6 +18,8 @@ interface SidebarProps {
   onStopChange: (id: string) => void;
   onHorizonChange: (horizon: Horizon) => void;
   onDateChange: (date: string) => void;
+  onDateFromChange: (date: string) => void;
+  onDateToChange: (date: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
@@ -26,6 +30,8 @@ export function Sidebar({
   stopId,
   horizon,
   date,
+  dateFrom,
+  dateTo,
   busy,
   loadingCatalog,
   loadingStops,
@@ -33,9 +39,12 @@ export function Sidebar({
   onStopChange,
   onHorizonChange,
   onDateChange,
+  onDateFromChange,
+  onDateToChange,
   onSubmit,
 }: SidebarProps) {
   const uniqueStops = [...new Map(stops.map((stop) => [stop.id, stop])).values()];
+  const isMonth = horizon === "month";
 
   return (
     <form
@@ -94,27 +103,56 @@ export function Sidebar({
         </select>
       </label>
 
-      <label>
-        Дата
-        <input
-          type="date"
-          min="2000-01-01"
-          max="2098-12-31"
-          value={date}
-          onChange={(event) => onDateChange(event.target.value)}
-          required
-        />
-      </label>
+      {isMonth ? (
+        <label className="period-label">
+          Период
+          <div className="period-fields">
+            <input
+              type="date"
+              min="2000-01-01"
+              max="2098-12-31"
+              value={dateFrom}
+              onChange={(event) => onDateFromChange(event.target.value)}
+              aria-label="Начало периода"
+              required
+            />
+            <span className="period-sep">—</span>
+            <input
+              type="date"
+              min="2000-01-01"
+              max="2098-12-31"
+              value={dateTo}
+              onChange={(event) => onDateToChange(event.target.value)}
+              aria-label="Конец периода"
+              required
+            />
+          </div>
+        </label>
+      ) : (
+        <label>
+          Дата
+          <input
+            type="date"
+            min="2000-01-01"
+            max="2098-12-31"
+            value={date}
+            onChange={(event) => onDateChange(event.target.value)}
+            required
+          />
+        </label>
+      )}
 
       <button
         type="submit"
-        disabled={!routeId || !date || busy || loadingStops}
+        disabled={!routeId || (!isMonth && !date) || busy || loadingStops}
       >
         {busy ? "Загрузка…" : "Получить прогноз"}
       </button>
 
       <p className="period-note">
-        Для месяца и года период начинается с первого числа выбранного месяца.
+        {isMonth
+          ? "Укажите начало и конец периода."
+          : "Прогноз начинается с выбранной даты."}
       </p>
     </form>
   );

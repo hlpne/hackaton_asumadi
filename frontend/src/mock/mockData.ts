@@ -1,7 +1,3 @@
-// Mock-данные для demo mode (см. раздел 12 документа проекта).
-// Используются автоматически, когда backend недоступен.
-// Детерминированный seed — одинаковые данные при каждом запуске.
-
 import type {
   ForecastResponse,
   Horizon,
@@ -41,14 +37,13 @@ const rawStops: Array<[string, string, number, number]> = [
 
 export function mockStopsForRoute(routeId: string): RouteStop[] {
   return rawStops.map(([id, name, lat, lon], index) => ({
-    id,
+    id: `${routeId}-${id}`,
     name,
     lat,
     lon,
     sequence: index + 1,
     direction_id: 0 as const,
-    // route_id не входит в RouteStop по типу, но если нужно — можно расширить
-  })).map((stop) => ({ ...stop, id: `${routeId}-${stop.id}` }));
+  }));
 }
 
 // Детерминированный ПСЧ (mulberry32)
@@ -75,43 +70,58 @@ function hash(input: string): number {
 export function mockForecast(
   routeId: string,
   stopId: string | undefined,
-  horizon: Horizon
+  horizon: Horizon,
+  from?: string,
+  to?: string
 ): ForecastResponse {
-  const seed = hash(`${routeId}|${stopId ?? "all"}|${horizon}`);
+  const seed = hash(
+    `${routeId}|${stopId ?? "all"}|${horizon}|${from ?? ""}|${to ?? ""}`
+  );
   const rand = rng(seed);
 
-  const base = new Date("2026-09-26T00:00:00+03:00");
-  let count: number;
+  // Начало и конец периода — из from/to, если переданы
+  const startDate = from ? new Date(from) : new Date("2026-09-26T00:00:00+03:00");
+  const endDate = to
+    ? new Date(to)
+    : new Date(startDate.getTime() + 24 * 3600 * 1000);
+
+  const totalMs = Math.max(endDate.getTime() - startDate.getTime(), 3600 * 1000);
+
+  // Шаг в зависимости от горизонта
   let stepMs: number;
   let resolution: ForecastResponse["resolution"];
   if (horizon === "day") {
-    count = 24;
-    stepMs = 3600 * 1000;
+    stepMs = 3600 * 1000; // 1 час
     resolution = "PT1H";
   } else if (horizon === "month") {
-    count = 30;
-    stepMs = 24 * 3600 * 1000;
+    stepMs = 24 * 3600 * 1000; // 1 день
     resolution = "P1D";
   } else {
-    count = 12;
-    stepMs = 30 * 24 * 3600 * 1000;
+    stepMs = 30 * 24 * 3600 * 1000; // ~1 месяц
     resolution = "P1M";
   }
 
+  const count = Math.max(Math.min(Math.round(totalMs / stepMs), 500), 2);
+
+  // Значения в процентах от максимальной вместимости (100 % = полная загрузка)
   const points = Array.from({ length: count }, (_, i) => {
-    const ts = new Date(base.getTime() + i * stepMs);
+    const ts = new Date(startDate.getTime() + i * (totalMs / count));
     const hour = ts.getHours();
-    const seasonal =
-      100 +
-      80 * Math.exp(-Math.pow(hour - 8, 2) / 4) +
-      90 * Math.exp(-Math.pow(hour - 18, 2) / 4);
-    const noise = (rand() - 0.5) * 30;
-    const load = Math.max(0, seasonal + noise);
+
+    // Суточная сезонность — два пика (утро 8:00, вечер 18:00)
+    const morningPeak = Math.exp(-Math.pow(hour - 8, 2) / 4);
+    const eveningPeak = Math.exp(-Math.pow(hour - 18, 2) / 4);
+
+    // Базовая кривая: 20 % ночью, до 90 % в пики (с шумом иногда до 100 %)
+    const basePercent = 20 + 50 * morningPeak + 55 * eveningPeak;
+    const noise = (rand() - 0.5) * 15;
+    const loadPercent = Math.min(100, Math.max(0, basePercent + noise));
+
     return {
       timestamp: ts.toISOString(),
-      predicted_load: Math.round(load * 10) / 10,
-      lower_bound: Math.round(load * 0.9 * 10) / 10,
-      upper_bound: Math.round(load * 1.1 * 10) / 10,
+      predicted_load: Math.round(loadPercent * 10) / 10,
+      lower_bound: Math.round(Math.max(0, loadPercent * 0.9) * 10) / 10,
+      upper_bound: Math.round(Math.min(100, loadPercent * 1.1) * 10) / 10,
     };
   });
 
@@ -124,8 +134,8 @@ export function mockForecast(
     },
     horizon,
     resolution,
-    forecast_origin: base.toISOString(),
-    value_unit: "demo_index",
+    forecast_origin: startDate.toISOString(),
+    value_unit: "percent",
     aggregation: "demo_mean",
     is_mock: true,
     model_version: "mock-v0",
