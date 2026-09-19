@@ -1,63 +1,92 @@
-import type { ForecastPoint } from "../../types";
+import type { MapForecastPoint, TopOverloadResponse } from "../../types";
 
 interface TopOverloadPanelProps {
-  points: ForecastPoint[];
+  data: TopOverloadResponse | null;
+  busy: boolean;
+  error: string;
+  routeName: string;
+  selectedPoint: MapForecastPoint | null;
+  onSelect: (point: MapForecastPoint) => void;
+  onRetry: () => void;
 }
 
-interface RankedPoint {
-  rank: number;
-  timestamp: string;
-  load: number;
-  level: "high" | "medium" | "low";
-}
-
-const formatter = new Intl.DateTimeFormat("ru-RU", {
+const timestampFormatter = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow",
   day: "2-digit",
   month: "2-digit",
+  year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
 
-function classify(load: number, maxLoad: number): RankedPoint["level"] {
-  const ratio = load / maxLoad;
-  if (ratio >= 0.85) return "high";
-  if (ratio >= 0.6) return "medium";
-  return "low";
-}
+const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 
-export function TopOverloadPanel({ points }: TopOverloadPanelProps) {
-  if (points.length === 0) return null;
-
-  const activePoints = points.filter((point) => point.predicted_load > 0);
-  if (!activePoints.length) return <div className="top-panel"><h3 className="chart-title">Top-5 перегруженных интервалов</h3><p>Нет интервалов с положительной загрузкой.</p></div>;
-  const maxLoad = Math.max(...activePoints.map((p) => p.predicted_load));
-
-  const ranked: RankedPoint[] = activePoints
-    .map((p) => ({
-      rank: 0,
-      timestamp: p.timestamp,
-      load: p.predicted_load,
-      level: classify(p.predicted_load, maxLoad),
-    }))
-    .sort((a, b) => b.load - a.load)
-    .slice(0, 5)
-    .map((item, index) => ({ ...item, rank: index + 1 }));
+export function TopOverloadPanel({
+  data,
+  busy,
+  error,
+  routeName,
+  selectedPoint,
+  onSelect,
+  onRetry,
+}: TopOverloadPanelProps) {
+  const unit = data?.value_unit === "demo_index" ? "условный индекс" : data?.value_unit;
 
   return (
-    <div className="top-panel">
-      <h3 className="chart-title">Top-5 перегруженных интервалов</h3>
-      <ul className="top-list">
-        {ranked.map((item) => (
-          <li key={item.timestamp} className={`top-item top-item--${item.level}`}>
-            <span className="top-rank">#{item.rank}</span>
-            <span className="top-time">{formatter.format(new Date(item.timestamp))}</span>
-            <span className="top-load">
-              {item.load.toFixed(1)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section className="top-panel" aria-labelledby="top-panel-title" aria-busy={busy}>
+      <div className="top-panel-heading">
+        <div>
+          <p className="eyebrow">ТОЧКИ С МАКСИМАЛЬНЫМ ПРОГНОЗОМ</p>
+          <h2 id="top-panel-title">Топ остановок маршрута{routeName ? ` · ${routeName}` : ""}</h2>
+          <p>Рейтинг по ожидаемой загрузке на выбранный момент. Выберите остановку, чтобы найти её на карте.</p>
+        </div>
+        {data && <span className="top-panel-time">{timestampFormatter.format(new Date(data.timestamp))} МСК</span>}
+      </div>
+
+      {busy && <p className="top-panel-status" role="status">Загружаем рейтинг остановок…</p>}
+      {!busy && error && (
+        <div className="top-panel-error" role="alert">
+          <p>Не удалось получить рейтинг: {error}</p>
+          <button type="button" onClick={onRetry}>Повторить</button>
+        </div>
+      )}
+      {!busy && !error && data && !data.items.length && (
+        <p className="top-panel-status" role="status">Для выбранного времени нет остановок с положительным прогнозом. Попробуйте другое время.</p>
+      )}
+      {!busy && !error && data && data.items.length > 0 && (
+        <ol className="top-list">
+          {data.items.map((item) => {
+            const selected = selectedPoint?.route_id === item.route_id &&
+              selectedPoint.stop_id === item.stop_id && selectedPoint.direction_id === item.direction_id;
+            return (
+              <li key={`${item.route_id}/${item.direction_id}/${item.stop_id}`}>
+                <button
+                  type="button"
+                  className={`top-item${selected ? " top-item--selected" : ""}`}
+                  aria-pressed={selected}
+                  aria-label={`Показать на карте: ${item.stop_name}, направление ${item.direction_id + 1}, место ${item.rank}, прогноз ${valueFormatter.format(item.predicted_load)} ${unit}`}
+                  onClick={() => onSelect(item)}
+                >
+                  <span className="top-rank">#{item.rank}</span>
+                  <span className="top-place">
+                    <strong>{item.stop_name}</strong>
+                    <small>Направление {item.direction_id + 1} · {item.route_name}</small>
+                  </span>
+                  <span className="top-load">{valueFormatter.format(item.predicted_load)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {data && !error && (
+        <p className="top-panel-note">
+          {data.is_mock
+            ? `Демонстрационные данные · ${unit}. Рейтинг не означает превышение вместимости.`
+            : `Единица показателя: ${unit}. Порог перегрузки не задан.`}
+          {" "}Источник: /forecast/top-overload · {data.model_version}.
+        </p>
+      )}
+    </section>
   );
 }

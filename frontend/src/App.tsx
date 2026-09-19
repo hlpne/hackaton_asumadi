@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { getForecast, getMapForecast, getRoutes, getStops } from "./api";
-import type { ForecastResponse, Horizon, MapForecastResponse, Route, RouteStop } from "./types";
+import { useEffect, useRef, useState } from "react";
+import { getForecast, getMapForecast, getRoutes, getStops, getTopOverload } from "./api";
+import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop, TopOverloadResponse } from "./types";
 import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MapView } from "./components/map/MapView";
@@ -92,6 +92,10 @@ export default function App() {
   const [retry, setRetry] = useState(0);
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
+  const [topOverload, setTopOverload] = useState<TopOverloadResponse | null>(null);
+  const [topError, setTopError] = useState("");
+  const [focusedPoint, setFocusedPoint] = useState<MapForecastPoint | null>(null);
+  const mapAnchor = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
@@ -139,6 +143,8 @@ export default function App() {
       (!validTime(startTime) || !validTime(endTime) || startTime >= endTime))) {
       setForecast(null);
       setMapForecast(null);
+      setTopOverload(null);
+      setTopError("");
       setBusy(false);
       setError("");
       return;
@@ -149,6 +155,8 @@ export default function App() {
     setError("");
     setForecast(null);
     setMapForecast(null);
+    setTopOverload(null);
+    setTopError("");
 
     void Promise.allSettled([
       getForecast(
@@ -166,10 +174,16 @@ export default function App() {
         { route_id: routeId, direction_id: segment?.directionId, horizon, timestamp: range.from, forecast_origin: range.from },
         controller.signal,
       ),
-    ]).then(([seriesResult, mapResult]) => {
+      getTopOverload(
+        { route_id: routeId, direction_id: segment?.directionId, horizon, timestamp: range.from, forecast_origin: range.from, limit: 5 },
+        controller.signal,
+      ),
+    ]).then(([seriesResult, mapResult, topResult]) => {
       if (controller.signal.aborted) return;
       if (seriesResult.status === "fulfilled") setForecast(seriesResult.value);
       if (mapResult.status === "fulfilled") setMapForecast(mapResult.value);
+      if (topResult.status === "fulfilled") setTopOverload(topResult.value);
+      else setTopError(failureMessage(topResult.reason));
       const failures = [seriesResult, mapResult]
         .filter((result): result is PromiseRejectedResult => result.status === "rejected")
         .map((result) => failureMessage(result.reason));
@@ -204,40 +218,62 @@ export default function App() {
           loadingCatalog={loadingCatalog}
           loadingStops={loadingStops}
           onRouteChange={(id) => {
+            setFocusedPoint(null);
             setFromStopId("");
             setToStopId("");
             setRouteId(id);
           }}
           onFromStopChange={(id) => {
+            setFocusedPoint(null);
             setFromStopId(id);
             setToStopId("");
           }}
-          onToStopChange={setToStopId}
-          onHorizonChange={setHorizon}
-          onDateChange={setDate}
-          onStartTimeChange={setStartTime}
-          onEndTimeChange={setEndTime}
+          onToStopChange={(id) => { setFocusedPoint(null); setToStopId(id); }}
+          onHorizonChange={(value) => { setFocusedPoint(null); setHorizon(value); }}
+          onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
+          onStartTimeChange={(value) => { setFocusedPoint(null); setStartTime(value); }}
+          onEndTimeChange={(value) => { setFocusedPoint(null); setEndTime(value); }}
           onRefresh={() => setRetry((value) => value + 1)}
         />
 
-        <MapView
-          route={routes.find((r) => r.id === routeId)}
-          snapshot={mapForecast}
-          stops={stops}
-          segment={segment}
-          selectedStopId={fromStopId}
-          busy={busy}
-          onStopSelect={(id) => {
-            setFromStopId(id);
-            setToStopId("");
-          }}
-        />
+        <div ref={mapAnchor}>
+          <MapView
+            route={routes.find((r) => r.id === routeId)}
+            snapshot={mapForecast}
+            stops={stops}
+            segment={segment}
+            selectedStopId={focusedPoint?.stop_id ?? fromStopId}
+            focusedPoint={focusedPoint}
+            busy={busy}
+            onStopSelect={(id) => {
+              setFocusedPoint(null);
+              setFromStopId(id);
+              setToStopId("");
+            }}
+          />
+        </div>
 
         {error && (
           <p className="error" role="alert">
             {error} Проверьте backend и нажмите «Повторить».
           </p>
         )}
+
+        <TopOverloadPanel
+          data={topOverload}
+          busy={busy}
+          error={topError}
+          routeName={routes.find((route) => route.id === routeId)?.name ?? ""}
+          selectedPoint={focusedPoint}
+          onSelect={(point) => {
+            setFocusedPoint(point);
+            setFromStopId("");
+            setToStopId("");
+            setRouteId(point.route_id);
+            mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onRetry={() => setRetry((value) => value + 1)}
+        />
 
         <section className="result" aria-busy={busy} aria-live="polite">
           {!forecast || !forecast.points.length ? (
@@ -289,7 +325,6 @@ export default function App() {
                 </span>
               </div>
               <LoadChart forecast={forecast} />
-              <TopOverloadPanel points={forecast.points} />
               <ForecastTable forecast={forecast} />
             </>
           )}

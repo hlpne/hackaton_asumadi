@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRouteGeometry } from "../../api";
-import type { MapForecastResponse, Route, RouteGeometry, RouteStop } from "../../types";
+import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry, RouteStop } from "../../types";
 import { YandexMap } from "./YandexMap";
 import { clipRouteLines, type RouteSegment } from "../../routeSegment";
 
@@ -28,11 +28,12 @@ interface MapViewProps {
   stops: RouteStop[];
   segment: RouteSegment | null;
   selectedStopId: string;
+  focusedPoint: MapForecastPoint | null;
   busy: boolean;
   onStopSelect: (stopId: string) => void;
 }
 
-export function MapView({ route, snapshot, stops, segment, selectedStopId, busy, onStopSelect }: MapViewProps) {
+export function MapView({ route, snapshot, stops, segment, selectedStopId, focusedPoint, busy, onStopSelect }: MapViewProps) {
   const [geometry, setGeometry] = useState<RouteGeometry | null>(null);
   const [geometryError, setGeometryError] = useState("");
   const [yandexError, setYandexError] = useState("");
@@ -44,13 +45,13 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, busy,
     setGeometryError("");
     if (!route) return;
     const controller = new AbortController();
-    getRouteGeometry(route.id, segment?.directionId ?? 0, controller.signal)
+    getRouteGeometry(route.id, focusedPoint?.direction_id ?? segment?.directionId ?? 0, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setGeometry(data); })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setGeometryError(error instanceof Error ? error.message : "Не удалось загрузить геометрию");
       });
     return () => controller.abort();
-  }, [route, segment?.directionId]);
+  }, [route, segment?.directionId, focusedPoint?.direction_id]);
 
   const displayGeometry = useMemo(() => {
     if (!geometry) return null;
@@ -69,7 +70,7 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, busy,
   const points = snapshot?.is_mock && snapshot.horizon === "day"
     ? snapshot.points.filter((point) => point.predicted_load > 0)
     : snapshot?.points ?? [];
-  const forward = points.filter((point) => point.direction_id === (segment?.directionId ?? 0));
+  const forward = points.filter((point) => point.direction_id === (focusedPoint?.direction_id ?? segment?.directionId ?? 0));
   const ordered = (segment
     ? forward.filter((point) => point.sequence >= segment.from.sequence && point.sequence <= segment.to.sequence)
     : forward.length ? forward : points).slice().sort((a, b) => a.sequence - b.sequence);
@@ -92,6 +93,7 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, busy,
         snapshot={snapshot}
         visibleStopIds={markers.map((point) => point.stop_id).join("|")}
         selectedStopId={selectedStopId}
+        focusedPoint={focusedPoint}
         colorForValue={loadColor}
         onStopSelect={onStopSelect}
         onError={onYandexError}
