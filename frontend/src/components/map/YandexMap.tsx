@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MapForecastResponse, Route, RouteGeometry } from "../../types";
+import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
 
 type LngLat = [number, number];
 type MapChild = object;
@@ -7,7 +7,7 @@ type MapChild = object;
 interface YMapInstance {
   addChild(child: MapChild): void;
   removeChild(child: MapChild): void;
-  update(props: { location: { bounds: [LngLat, LngLat] } }): void;
+  update(props: { location: { bounds: [LngLat, LngLat] } | { center: LngLat; zoom: number } }): void;
   destroy(): void;
 }
 
@@ -55,12 +55,13 @@ interface YandexMapProps {
   snapshot: MapForecastResponse | null;
   visibleStopIds: string;
   selectedStopId: string;
+  focusedPoint: MapForecastPoint | null;
   colorForValue: (value: number, snapshot: MapForecastResponse) => string;
   onStopSelect: (stopId: string) => void;
   onError: (message: string) => void;
 }
 
-export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, selectedStopId, colorForValue, onStopSelect, onError }: YandexMapProps) {
+export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError }: YandexMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
@@ -146,6 +147,12 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       map.update({ location: { bounds: [[Math.min(...lon), Math.min(...lat)], [Math.max(...lon), Math.max(...lat)]] } });
     }
   }, [ready, geometry, route, snapshot, visibleStopIds, selectedStopId, colorForValue, onStopSelect]);
+
+  useEffect(() => {
+    if (!ready || !mapRef.current || !focusedPoint || focusedPoint.route_id !== route?.id ||
+      focusedPoint.direction_id !== geometry?.direction_id) return;
+    mapRef.current.update({ location: { center: [focusedPoint.lon, focusedPoint.lat], zoom: 15 } });
+  }, [ready, route?.id, geometry?.direction_id, focusedPoint]);
 
   return <div ref={container} className="map-container" aria-label="Карта Яндекса с маршрутами и остановками OSM" />;
 }

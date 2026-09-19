@@ -12,3 +12,9 @@ export const resolutions: Record<string, string> = {
   P1D: "1 день",
   P1M: "1 месяц",
 };
+
+export const snapshotPeriod: Record<Horizon, string> = {
+  day: "на выбранное время",
+  month: "за первый день выбранного месяца",
+  year: "за первый месяц выбранного года",
+};
