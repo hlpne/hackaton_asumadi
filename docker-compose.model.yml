@@ -1,0 +1,12 @@
+# Optional override; combine with docker-compose.yml from the repository root.
+services:
+  backend:
+    build:
+      args:
+        INSTALL_MODEL_EXAMPLE: "true"
+    environment:
+      PREDICTOR_FACTORY: app.predictors.artifact:build_predictor
+      MODEL_PATH: ${MODEL_PATH:-models/example.cbm}
+      MODEL_METADATA_PATH: ${MODEL_METADATA_PATH:-models/example.metadata.json}
+    volumes:
+      - ./models:/project/models:ro

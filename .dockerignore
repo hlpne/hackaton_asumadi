@@ -9,3 +9,5 @@
 data
 *.bundle
 *.zip
+models
+**/catboost_info

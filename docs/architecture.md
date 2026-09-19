@@ -217,7 +217,7 @@ class Predictor(Protocol):
 
 1. Текущий mock: `app.predictors.mock:build_predictor`.
 2. Проверочный провайдер: `app.predictors.constant:build_predictor` — значение 42, обе границы null.
-3. Будущий ML: например, `app.predictors.real:build_predictor`, когда такой модуль будет реализован. Сейчас его нет.
+3. Пример файловой модели: `app.predictors.artifact:build_predictor` — `.cbm` или `.pkl`, загрузка один раз, признаки и преобразование выхода внутри модуля. Настройка и ограничения: [model-adapter.md](model-adapter.md). Это пример интеграции; обученного на реальных транспортных данных baseline пока нет.
 
 Для переключения меняется одна строка `.env` и перезапускается backend. При Compose применяется `docker compose up -d --force-recreate backend`. Пересборка frontend не требуется. Если добавляется новый Python-модуль в образ, backend нужно пересобрать.
 
