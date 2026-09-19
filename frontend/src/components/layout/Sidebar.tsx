@@ -13,6 +13,7 @@ interface SidebarProps {
   date: string;
   dateFrom: string;
   dateTo: string;
+  monthPeriodValid: boolean;
   startTime: string;
   busy: boolean;
   loadingCatalog: boolean;
@@ -41,6 +42,7 @@ export function Sidebar({
   date,
   dateFrom,
   dateTo,
+  monthPeriodValid,
   startTime,
   busy,
   loadingCatalog,
@@ -95,7 +97,7 @@ export function Sidebar({
         </select>
       </label>
       <button type="button" onClick={onRefresh} disabled={!routeId || !date || loadingStops || busy ||
-        (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo))}>
+        (horizon === "month" && !monthPeriodValid)}>
         {busy ? "Загрузка…" : "Обновить прогноз"}
       </button>
       <details className="segment-options">
@@ -162,14 +164,16 @@ export function Sidebar({
       <button
         type="button"
         onClick={onRefresh}
-        disabled={!date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || invalidTime || busy}
+        disabled={!date || (horizon === "month" && !monthPeriodValid) || invalidTime || busy}
       >
         {busy ? "Загрузка…" : "Обновить"}
       </button>
 
-      <p className="period-note" role={invalidTime ? "alert" : undefined}>
+      <p className="period-note" role={invalidTime || (horizon === "month" && !monthPeriodValid) ? "alert" : undefined}>
         {invalidTime
           ? "Укажите корректное время среза."
+          : horizon === "month" && !monthPeriodValid
+            ? "Укажите период не длиннее одного месяца."
           : horizon === "day"
             ? "Показатели рассчитаны для выбранного времени по всей сети."
             : horizon === "month"

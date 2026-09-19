@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { getMapForecast, getRoutes, getStops } from "./api";
-import type { Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "./types";
+import { getForecast, getMapForecast, getRoutes, getStops } from "./api";
+import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "./types";
 import { Header } from "./components/layout/Header";
 import type { Page } from "./components/layout/Header";
 import { HomePage } from "./components/layout/HomePage";
@@ -32,9 +32,13 @@ function currentMoscowTime(): string {
 }
 
 function nextMonth(date: string): string {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCMonth(value.getUTCMonth() + 1);
-  return value.toISOString().slice(0, 10);
+  const [year, month, day] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}
+
+function validMonthPeriod(from: string, to: string): boolean {
+  return Boolean(from && to && from < to && to <= nextMonth(from));
 }
 
 function snapshotTimestamp(
@@ -52,6 +56,17 @@ function snapshotTimestamp(
   const [year, month] = date.split("-").map(Number);
   const start = new Date(Date.UTC(year, month - 1, 1));
   return `${start.toISOString().slice(0, 13)}:00:00+03:00`;
+}
+
+function forecastRange(date: string, horizon: Horizon, startTime: string, dateFrom: string, dateTo: string) {
+  const from = snapshotTimestamp(date, horizon, startTime, dateFrom);
+  if (horizon === "day") {
+    return { from, to: new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString(), resolution: "PT1H" as const };
+  }
+  if (horizon === "month") return { from, to: `${dateTo}T00:00:00+03:00`, resolution: "P1D" as const };
+  const [year, month] = date.split("-").map(Number);
+  const end = new Date(Date.UTC(year + 1, month - 1, 1)).toISOString().slice(0, 10);
+  return { from, to: `${end}T00:00:00+03:00`, resolution: "P1M" as const };
 }
 
 function compareRoutes(a: Route, b: Route): number {
@@ -98,6 +113,9 @@ export default function App() {
   const [startTime, setStartTime] = useState(currentMoscowTime);
   const [retry, setRetry] = useState(0);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
+  const [routeForecast, setRouteForecast] = useState<ForecastResponse | null>(null);
+  const [forecastError, setForecastError] = useState("");
+  const [forecastBusy, setForecastBusy] = useState(false);
   const [networkForecast, setNetworkForecast] = useState<MapForecastResponse | null>(null);
   const [networkError, setNetworkError] = useState("");
   const [networkBusy, setNetworkBusy] = useState(false);
@@ -168,7 +186,7 @@ export default function App() {
   }, [routeId]);
 
   useEffect(() => {
-    if (!routeId || !date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || (horizon === "day" &&
+    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) || (horizon === "day" &&
       !validTime(startTime))) {
       setMapForecast(null);
       setBusy(false);
@@ -189,8 +207,33 @@ export default function App() {
   }, [routeId, horizon, date, dateFrom, dateTo, startTime, retry]);
 
   useEffect(() => {
+    if (page !== "details") return;
+    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) ||
+      (horizon === "day" && !validTime(startTime))) {
+      setRouteForecast(null);
+      setForecastError("");
+      setForecastBusy(false);
+      return;
+    }
+    const controller = new AbortController();
+    const range = forecastRange(date, horizon, startTime, dateFrom, dateTo);
+    const stopId = focusedPoint?.stop_id || segment?.from.id || forecastStopId || undefined;
+    const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
+    setRouteForecast(null);
+    setForecastError("");
+    setForecastBusy(true);
+    getForecast({ route_id: routeId, stop_id: stopId, direction_id: direction, horizon,
+      resolution: range.resolution, from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setRouteForecast(data); })
+      .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
+      .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
+    return () => controller.abort();
+  }, [page, routeId, horizon, date, dateFrom, dateTo, startTime, directionId,
+    focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId, forecastStopId, retry]);
+
+  useEffect(() => {
     if (page !== "analytics") return;
-    if (!date || (horizon === "month" && (!dateFrom || !dateTo || dateFrom >= dateTo)) || (horizon === "day" &&
+    if (!date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) || (horizon === "day" &&
       !validTime(startTime))) {
       setNetworkForecast(null);
       setNetworkError("");
@@ -232,6 +275,7 @@ export default function App() {
           date={date}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          monthPeriodValid={validMonthPeriod(dateFrom, dateTo)}
           startTime={startTime}
           busy={page === "analytics" ? networkBusy : busy}
           loadingCatalog={loadingCatalog}
@@ -277,11 +321,17 @@ export default function App() {
             selectedStopId={focusedPoint?.stop_id ?? forecastStopId}
             focusedPoint={focusedPoint}
             busy={busy}
+            forecast={routeForecast}
+            forecastBusy={forecastBusy}
+            forecastError={forecastError}
+            forecastLabel={focusedPoint?.stop_name ?? stops.find((stop) => stop.id === (segment?.from.id || forecastStopId))?.name}
+            horizon={horizon}
             onSelectStop={(point) => {
               setFocusedPoint(point);
               setDirectionId(point.direction_id);
               setForecastStopId(point.stop_id);
             }}
+            onRetryForecast={() => setRetry((value) => value + 1)}
           />
         </div>}
 

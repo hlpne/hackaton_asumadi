@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { ArrowRightIcon, ChartBarIcon, ClockIcon, MapPinIcon, TramIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { loadColor, loadLabels, loadLevel } from "../../loadLevel";
-import type { MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
+import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
 import type { RouteSegment } from "../../routeSegment";
 import { MapView } from "../map/MapView";
 import { StopsModal } from "./StopsModal";
+
+const LoadChart = lazy(() => import("./LoadChart").then((module) => ({ default: module.LoadChart })));
 
 interface RouteDetailsDashboardProps {
   route?: Route;
@@ -15,13 +17,20 @@ interface RouteDetailsDashboardProps {
   focusedPoint: MapForecastPoint | null;
   selectedStopId: string;
   busy: boolean;
+  forecast: ForecastResponse | null;
+  forecastBusy: boolean;
+  forecastError: string;
+  forecastLabel?: string;
+  horizon: Horizon;
   onSelectStop: (point: MapForecastPoint) => void;
+  onRetryForecast: () => void;
 }
 
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 const time = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
 
-export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, focusedPoint, selectedStopId, busy, onSelectStop }: RouteDetailsDashboardProps) {
+export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, focusedPoint, selectedStopId, busy,
+  forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
   const points = snapshot?.points.filter((point) => point.direction_id === direction) ?? [];
@@ -78,6 +87,23 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
         {peakStop && snapshot && <p className="route-summary-note">{loadLabels[loadLevel(peakStop.predicted_load, snapshot)]} нагрузка по текущему срезу. Нажмите остановку, чтобы найти её на карте.</p>}
       </aside>
     </div>
+    <section className="detail-forecast" aria-labelledby="detail-forecast-title" aria-busy={forecastBusy}>
+      <div className="detail-forecast-heading">
+        <span className="detail-forecast-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span>
+        <div>
+          <p className="eyebrow">ВЫБРАННЫЙ МАРШРУТ</p>
+          <h2 id="detail-forecast-title">Прогноз загрузки</h2>
+          <p>{forecastLabel ? `Остановка «${forecastLabel}»` : `Направление ${direction + 1}`}
+            {" · "}{horizon === "day" ? "ближайшие 24 часа" : horizon === "month" ? "выбранный период" : "12 месяцев"}</p>
+        </div>
+      </div>
+      {forecastBusy && <p className="detail-forecast-status" role="status">Загружаем прогноз…</p>}
+      {!forecastBusy && forecastError && <div className="top-panel-error" role="alert"><p>Не удалось получить прогноз: {forecastError}</p>
+        <button type="button" onClick={onRetryForecast}>Повторить</button></div>}
+      {!forecastBusy && !forecastError && forecast && (forecast.points.length
+        ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} /></Suspense>
+        : <p className="detail-forecast-status">Для выбранного периода нет точек прогноза.</p>)}
+    </section>
     {allStopsOpen && <StopsModal stops={stops} snapshot={snapshot} selectedStopId={selectedStopId}
       onSelect={onSelectStop} onClose={() => setAllStopsOpen(false)} />}
   </div>;
