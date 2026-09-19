@@ -161,7 +161,32 @@ def main() -> None:
         type=Path,
         default=Path(__file__).resolve().parents[1] / "migrations" / "002_transit_schedule.sql",
     )
+    parser.add_argument(
+        "--if-empty",
+        action="store_true",
+        help="Skip the bundled import when transit stop times are already populated.",
+    )
     args = parser.parse_args()
+
+    # Docker volumes outlive images, so always apply the idempotent migration
+    # before deciding whether the bundled schedule still needs importing.
+    with psycopg.connect(**connection_parameters(), autocommit=True) as migration_connection:
+        migration_sql = "\n".join(
+            line for line in args.migration.read_text(encoding="utf-8").splitlines()
+            if line.strip() not in {"BEGIN;", "COMMIT;"}
+        )
+        for statement in migration_sql.split(";"):
+            statement = statement.strip()
+            if statement:
+                migration_connection.execute(statement)
+        if args.if_empty:
+            populated = migration_connection.execute(
+                "SELECT EXISTS (SELECT 1 FROM transit_stop_times LIMIT 1)"
+            ).fetchone()[0]
+            if populated:
+                print("SCHEDULE_IMPORT_SKIPPED: transit schedule is already populated", flush=True)
+                return
+
     catalog = json.loads(args.catalog.read_text(encoding="utf-8"))
     if args.source_dir is not None:
         files = source_files(args.source_dir)
@@ -212,16 +237,6 @@ def main() -> None:
     used_by_route: dict[str, set[int]] = {route_id: set() for route_id in route_codes.values()}
     imported = 0
     scanned = 0
-    with psycopg.connect(**connection_parameters(), autocommit=True) as migration_connection:
-        migration_sql = "\n".join(
-            line for line in args.migration.read_text(encoding="utf-8").splitlines()
-            if line.strip() not in {"BEGIN;", "COMMIT;"}
-        )
-        for statement in migration_sql.split(";"):
-            statement = statement.strip()
-            if statement:
-                migration_connection.execute(statement)
-
     with psycopg.connect(**connection_parameters()) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SET statement_timeout = 0")

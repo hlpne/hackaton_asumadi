@@ -39,6 +39,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      schedule-import:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"]
       interval: 10s
@@ -55,7 +57,6 @@ services:
       backend:
         condition: service_healthy
   schedule-import:
-    profiles: ["tools"]
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -68,7 +69,7 @@ services:
     volumes:
       - ./db:/project/db:ro
       - ./mock_data:/project/mock_data:ro
-    command: ["python", "/project/db/scripts/import_schedule.py"]
+    command: ["python", "/project/db/scripts/import_schedule.py", "--if-empty"]
     depends_on:
       db:
         condition: service_healthy
