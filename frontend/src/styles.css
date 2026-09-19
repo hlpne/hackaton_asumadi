@@ -166,10 +166,19 @@ a { color: #173f71; text-underline-offset: .2em; }
 }
 
 .top-load {
+  display: grid;
+  gap: .1rem;
+  justify-items: end;
   font-weight: 700;
   font-size: 1rem;
   color: #17263c;
 }
+.top-load small { font-size: .7rem; font-weight: 500; color: #536177; }
+.network-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+.network-columns h3 { margin: 0; font-size: 1.05rem; }
+.network-explanation { margin: .5rem 0 0; color: #536177; line-height: 1.5; font-size: .88rem; }
+.network-expand { margin-top: .8rem; min-height: 40px; }
+@media (max-width: 900px) { .network-columns { grid-template-columns: 1fr; } }
 @media (max-width: 580px) {
   .top-panel { padding: 1rem; }
   .top-panel-heading { flex-direction: column; }

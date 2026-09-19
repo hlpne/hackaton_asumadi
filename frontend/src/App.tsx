@@ -6,6 +6,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { MapView } from "./components/map/MapView";
 import { LoadChart } from "./components/analytics/LoadChart";
 import { TopOverloadPanel } from "./components/analytics/TopOverloadPanel";
+import { NetworkOverview } from "./components/analytics/NetworkOverview";
 import { ForecastTable } from "./components/analytics/ForecastTable";
 import { horizons, resolutions } from "./constants";
 import { buildRouteSegment } from "./routeSegment";
@@ -94,6 +95,9 @@ export default function App() {
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
   const [topOverload, setTopOverload] = useState<TopOverloadResponse | null>(null);
   const [topError, setTopError] = useState("");
+  const [networkForecast, setNetworkForecast] = useState<MapForecastResponse | null>(null);
+  const [networkError, setNetworkError] = useState("");
+  const [networkBusy, setNetworkBusy] = useState(false);
   const [focusedPoint, setFocusedPoint] = useState<MapForecastPoint | null>(null);
   const mapAnchor = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
@@ -194,6 +198,26 @@ export default function App() {
     return () => controller.abort();
   }, [routeId, fromStopId, toStopId, stops, horizon, date, startTime, endTime, retry]);
 
+  useEffect(() => {
+    if (!date || (horizon === "day" &&
+      (!validTime(startTime) || !validTime(endTime) || startTime >= endTime))) {
+      setNetworkForecast(null);
+      setNetworkError("");
+      setNetworkBusy(false);
+      return;
+    }
+    const controller = new AbortController();
+    const range = dateRange(date, horizon, startTime, endTime);
+    setNetworkBusy(true);
+    setNetworkError("");
+    setNetworkForecast(null);
+    getMapForecast({ horizon, timestamp: range.from, forecast_origin: range.from }, controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setNetworkForecast(data); })
+      .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
+      .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
+    return () => controller.abort();
+  }, [horizon, date, startTime, endTime, retry]);
+
   return (
     <>
       <Header />
@@ -266,6 +290,29 @@ export default function App() {
           routeName={routes.find((route) => route.id === routeId)?.name ?? ""}
           selectedPoint={focusedPoint}
           onSelect={(point) => {
+            setFocusedPoint(point);
+            setFromStopId("");
+            setToStopId("");
+            setRouteId(point.route_id);
+            mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onRetry={() => setRetry((value) => value + 1)}
+        />
+
+        <NetworkOverview
+          data={networkForecast}
+          busy={networkBusy}
+          error={networkError}
+          selectedRouteId={routeId}
+          selectedPoint={focusedPoint}
+          onSelectRoute={(id) => {
+            setFocusedPoint(null);
+            setFromStopId("");
+            setToStopId("");
+            setRouteId(id);
+            mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onSelectStop={(point) => {
             setFocusedPoint(point);
             setFromStopId("");
             setToStopId("");

@@ -1,4 +1,5 @@
 import type { MapForecastPoint, TopOverloadResponse } from "../../types";
+import { snapshotPeriod } from "../../constants";
 
 interface TopOverloadPanelProps {
   data: TopOverloadResponse | null;
@@ -36,9 +37,9 @@ export function TopOverloadPanel({
     <section className="top-panel" aria-labelledby="top-panel-title" aria-busy={busy}>
       <div className="top-panel-heading">
         <div>
-          <p className="eyebrow">ТОЧКИ С МАКСИМАЛЬНЫМ ПРОГНОЗОМ</p>
-          <h2 id="top-panel-title">Топ остановок маршрута{routeName ? ` · ${routeName}` : ""}</h2>
-          <p>Рейтинг по ожидаемой загрузке на выбранный момент. Выберите остановку, чтобы найти её на карте.</p>
+          <p className="eyebrow">ВЫБРАННЫЙ МАРШРУТ</p>
+          <h2 id="top-panel-title">Остановки с наибольшим индексом{routeName ? ` · ${routeName}` : ""}</h2>
+          <p>До пяти остановок с самым высоким демонстрационным прогнозом {snapshotPeriod[data?.horizon ?? "day"]}. Нажмите остановку, чтобы найти её на карте.</p>
         </div>
         {data && <span className="top-panel-time">{timestampFormatter.format(new Date(data.timestamp))} МСК</span>}
       </div>
@@ -72,7 +73,7 @@ export function TopOverloadPanel({
                     <strong>{item.stop_name}</strong>
                     <small>Направление {item.direction_id + 1} · {item.route_name}</small>
                   </span>
-                  <span className="top-load">{valueFormatter.format(item.predicted_load)}</span>
+                  <span className="top-load"><small>Индекс</small>{valueFormatter.format(item.predicted_load)}</span>
                 </button>
               </li>
             );
@@ -82,8 +83,8 @@ export function TopOverloadPanel({
       {data && !error && (
         <p className="top-panel-note">
           {data.is_mock
-            ? `Демонстрационные данные · ${unit}. Рейтинг не означает превышение вместимости.`
-            : `Единица показателя: ${unit}. Порог перегрузки не задан.`}
+            ? `Демонстрационные данные · ${unit}. № 1 — максимальное значение среди остановок выбранного маршрута. Это не реальная перегрузка.`
+            : `Единица показателя: ${unit}. № 1 — максимальное значение среди остановок выбранного маршрута; порог перегрузки не задан.`}
           {" "}Источник: /forecast/top-overload · {data.model_version}.
         </p>
       )}
