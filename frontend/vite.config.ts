@@ -7,5 +7,5 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, "");
   const target = process.env.BACKEND_PROXY_TARGET || env.BACKEND_PROXY_TARGET || "http://127.0.0.1:8000";
   const proxy = { "/api": { target, changeOrigin: true, rewrite: (path: string) => path.replace(/^\/api/, "") } };
-  return { plugins: [react()], server: { proxy }, preview: { proxy } };
+  return { envDir: root, plugins: [react()], server: { proxy }, preview: { proxy } };
 });
