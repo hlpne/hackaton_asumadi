@@ -496,6 +496,7 @@
               "anyOf": [
                 {
                   "enum": [
+                    "schedule",
                     "PT1M",
                     "PT1H",
                     "P1D",
@@ -1003,6 +1004,7 @@
           "resolution": {
             "type": "string",
             "enum": [
+              "schedule",
               "PT1M",
               "PT1H",
               "P1D",
@@ -1059,7 +1061,6 @@
             },
             "type": "array",
             "maxItems": 1440,
-            "minItems": 1,
             "title": "Points"
           }
         },

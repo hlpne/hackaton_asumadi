@@ -85,6 +85,7 @@ export default function App() {
   const [routeId, setRouteId] = useState("");
   const [fromStopId, setFromStopId] = useState("");
   const [toStopId, setToStopId] = useState("");
+  const [forecastStopId, setForecastStopId] = useState("");
   const [horizon, setHorizon] = useState<Horizon>("day");
   const [date, setDate] = useState(currentMoscowDate);
   const [startTime, setStartTime] = useState(currentMoscowTime);
@@ -97,6 +98,7 @@ export default function App() {
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingStops, setLoadingStops] = useState(false);
   const segment = buildRouteSegment(stops, fromStopId, toStopId);
+  const forecastStop = stops.find((stop) => stop.id === forecastStopId);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -148,16 +150,15 @@ export default function App() {
     setBusy(true);
     setError("");
     setForecast(null);
-    setMapForecast(null);
 
     void Promise.allSettled([
       getForecast(
         {
           route_id: routeId,
-          stop_id: segment?.from.id,
-          direction_id: segment?.directionId,
+          stop_id: forecastStop?.id,
+          direction_id: forecastStop?.direction_id ?? segment?.directionId,
           horizon,
-          resolution: horizon === "day" ? "PT1M" : undefined,
+          resolution: horizon === "day" ? "schedule" : undefined,
           ...range,
         },
         controller.signal,
@@ -178,7 +179,7 @@ export default function App() {
     });
 
     return () => controller.abort();
-  }, [routeId, fromStopId, toStopId, stops, horizon, date, startTime, endTime, retry]);
+  }, [routeId, fromStopId, toStopId, forecastStopId, stops, horizon, date, startTime, endTime, retry]);
 
   return (
     <>
@@ -206,11 +207,14 @@ export default function App() {
           onRouteChange={(id) => {
             setFromStopId("");
             setToStopId("");
+            setForecastStopId("");
+            setMapForecast(null);
             setRouteId(id);
           }}
           onFromStopChange={(id) => {
             setFromStopId(id);
             setToStopId("");
+            setForecastStopId(id);
           }}
           onToStopChange={setToStopId}
           onHorizonChange={setHorizon}
@@ -225,12 +229,9 @@ export default function App() {
           snapshot={mapForecast}
           stops={stops}
           segment={segment}
-          selectedStopId={fromStopId}
+          selectedStopId={forecastStopId}
           busy={busy}
-          onStopSelect={(id) => {
-            setFromStopId(id);
-            setToStopId("");
-          }}
+          onStopSelect={setForecastStopId}
         />
 
         {error && (
@@ -258,7 +259,8 @@ export default function App() {
                   <h2>
                     {horizons[forecast.horizon]} · шаг {resolutions[forecast.resolution]}
                   </h2>
-                  {segment && <p>Участок: {segment.from.name} → {segment.to.name}. График показывает загрузку у начальной остановки.</p>}
+                  {segment && <p>Участок: {segment.from.name} → {segment.to.name}.</p>}
+                  <p>График: {forecastStop ? `остановка «${forecastStop.name}»` : "отправления с начала рейсов"}.</p>
                 </div>
                 <span className="version">{forecast.model_version}</span>
               </div>

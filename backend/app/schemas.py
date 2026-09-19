@@ -10,6 +10,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 MOSCOW = ZoneInfo("Europe/Moscow")
 DirectionId = Annotated[int, Field(ge=0, le=1)]
+Resolution = Literal["schedule", "PT1M", "PT1H", "P1D", "P1M"]
 
 
 class ContractModel(BaseModel):
@@ -37,7 +38,7 @@ class ForecastRequest(ContractModel):
     stop_id: str | None = Field(default=None, min_length=1, max_length=100)
     direction_id: DirectionId | None = None
     horizon: Horizon
-    resolution: Literal["PT1M", "PT1H", "P1D", "P1M"] | None = None
+    resolution: Resolution | None = None
     start: AwareDatetime = Field(alias="from")
     end: AwareDatetime = Field(alias="to")
     forecast_origin: AwareDatetime | None = None
@@ -45,7 +46,7 @@ class ForecastRequest(ContractModel):
     @model_validator(mode="after")
     def validate_range(self) -> Self:
         self.resolution = self.resolution or RESOLUTIONS[self.horizon]
-        allowed = {Horizon.DAY: {"PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
+        allowed = {Horizon.DAY: {"schedule", "PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
         if self.resolution not in allowed[self.horizon]:
             raise ValueError("resolution does not match horizon")
         self.start = self.start.astimezone(MOSCOW)
@@ -76,6 +77,8 @@ class ForecastRequest(ContractModel):
         return self
 
     def timestamps(self) -> list[datetime]:
+        if self.resolution == "schedule":
+            return []
         result = []
         current = self.start
         while current < self.end:
@@ -114,19 +117,19 @@ class ForecastResponse(ContractModel):
     contract_version: Literal["1.0"] = "1.0"
     series_key: SeriesKey
     horizon: Horizon
-    resolution: Literal["PT1M", "PT1H", "P1D", "P1M"]
+    resolution: Resolution
     forecast_origin: AwareDatetime
     value_unit: str = Field(min_length=1)
     aggregation: Literal["demo_mean", "sum", "mean", "max", "last"]
     is_mock: bool
     model_version: str = Field(min_length=1)
     interval_level: float | None = Field(default=None, gt=0, lt=1)
-    points: list[ForecastPoint] = Field(min_length=1, max_length=1440)
+    points: list[ForecastPoint] = Field(max_length=1440)
 
     @model_validator(mode="after")
     def validate_metadata(self) -> Self:
         self.forecast_origin = self.forecast_origin.astimezone(MOSCOW)
-        allowed = {Horizon.DAY: {"PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
+        allowed = {Horizon.DAY: {"schedule", "PT1M", "PT1H"}, Horizon.MONTH: {"P1D"}, Horizon.YEAR: {"P1M"}}
         if self.resolution not in allowed[self.horizon]:
             raise ValueError("resolution does not match horizon in contract v1")
         if self.interval_level is not None and any(p.lower_bound is None for p in self.points):

@@ -10,6 +10,7 @@ from app.catalog import MemoryCatalog
 from app.config import Settings
 from app.main import create_app
 from app.predictors.constant import ConstantPredictor
+from app.predictors.mock import MockPredictor
 from app.schemas import ForecastRequest, ForecastResponse, MapForecastResponse, TopOverloadResponse
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -98,6 +99,36 @@ def test_day_can_return_one_point_per_minute(client):
     assert [point["timestamp"] for point in response.json()["points"]] == [
         f"2026-09-26T07:{minute:02d}:00+03:00" for minute in range(25, 30)
     ]
+
+
+def test_schedule_resolution_uses_arrival_instants_and_allows_an_empty_range():
+    class ScheduleStub:
+        def arrivals(self, request):
+            if request.start.hour == 7:
+                return [
+                    request.start.replace(minute=27),
+                    request.start.replace(minute=34),
+                    request.start.replace(minute=46),
+                ]
+            return []
+
+    with TestClient(create_app(Settings(), predictor=MockPredictor(ScheduleStub()))) as client:
+        response = client.get("/forecast", params=DAY | {
+            "resolution": "schedule",
+            "from": "2026-09-26T07:25:00+03:00",
+            "to": "2026-09-26T08:00:00+03:00",
+        })
+        empty = client.get("/forecast", params=DAY | {
+            "resolution": "schedule",
+            "from": "2026-09-26T02:00:00+03:00",
+            "to": "2026-09-26T03:00:00+03:00",
+        })
+
+    assert response.status_code == 200, response.text
+    assert response.json()["resolution"] == "schedule"
+    assert [point["timestamp"][11:16] for point in response.json()["points"]] == ["07:27", "07:34", "07:46"]
+    assert empty.status_code == 200
+    assert empty.json()["points"] == []
 
 
 def test_minute_resolution_only_applies_to_day(client):

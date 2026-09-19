@@ -9,6 +9,8 @@ from pathlib import Path
 from app.schemas import (
     ForecastPoint, ForecastRequest, ForecastResponse, Horizon, SeriesKey, add_months,
 )
+from app.config import Settings
+from app.schedule import PostgresSchedule
 
 SERVICE_HOURS = json.loads(
     (Path(__file__).resolve().parents[3] / "mock_data" / "service_hours.json").read_text(encoding="utf-8")
@@ -28,8 +30,8 @@ def in_demo_service(series_key: str, value: datetime) -> bool:
     return start <= minute < end if start < end else minute >= start or minute < end
 
 
-def hour_value(key: str, value: datetime) -> float:
-    if not in_demo_service(key, value):
+def hour_value(key: str, value: datetime, enforce_service_window: bool = True) -> float:
+    if enforce_service_window and not in_demo_service(key, value):
         return 0.0
     seed = int(sha256(key.encode()).hexdigest()[:8], 16)
     base = 18 + seed % 30
@@ -40,17 +42,24 @@ def hour_value(key: str, value: datetime) -> float:
 
 
 class MockPredictor:
+    def __init__(self, schedule: PostgresSchedule | None = None) -> None:
+        self.schedule = schedule
+
     def predict(self, request: ForecastRequest) -> ForecastResponse:
         points = []
         key = f"{request.route_id}/{request.stop_id}/{request.direction_id}"
-        for timestamp in request.timestamps():
+        if request.resolution == "schedule":
+            timestamps = self.schedule.arrivals(request) if self.schedule is not None else []
+        else:
+            timestamps = request.timestamps()
+        for timestamp in timestamps:
             end = (add_months(timestamp, 1) if request.horizon == Horizon.YEAR else
                    timestamp + (timedelta(days=1) if request.horizon == Horizon.MONTH else
-                                timedelta(minutes=1) if request.resolution == "PT1M" else timedelta(hours=1)))
+                                timedelta(minutes=1) if request.resolution in {"schedule", "PT1M"} else timedelta(hours=1)))
             hourly = []
             tick = timestamp
             while tick < end:
-                hourly.append(hour_value(key, tick))
+                hourly.append(hour_value(key, tick, request.resolution != "schedule"))
                 tick += timedelta(hours=1)
             prediction = round(sum(hourly) / len(hourly), 2)
             points.append(ForecastPoint(
@@ -64,9 +73,12 @@ class MockPredictor:
             horizon=request.horizon, resolution=request.resolution,
             forecast_origin=request.forecast_origin,
             value_unit="demo_index", aggregation="demo_mean", is_mock=True,
-            model_version="mock-v0", interval_level=None, points=points,
+            model_version="mock-schedule-v1" if request.resolution == "schedule" else "mock-v0",
+            interval_level=None, points=points,
         )
 
 
 def build_predictor() -> MockPredictor:
-    return MockPredictor()
+    settings = Settings.from_env()
+    schedule = PostgresSchedule(settings) if settings.catalog_backend == "postgres" else None
+    return MockPredictor(schedule)

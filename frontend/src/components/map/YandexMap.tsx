@@ -107,8 +107,8 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
     const noDemoService = Boolean(snapshot?.is_mock && snapshot.horizon === "day" &&
       snapshot.points.length && snapshot.points.every((point) => point.predicted_load === 0));
     const visible = new Set(visibleStopIds.split("|"));
-    const points = snapshot?.points.filter((point) => visible.has(point.stop_id) && point.direction_id === geometry.direction_id &&
-      (!snapshot.is_mock || snapshot.horizon !== "day" || point.predicted_load > 0)) ?? [];
+    const points = snapshot?.points.filter((point) =>
+      visible.has(point.stop_id) && point.direction_id === geometry.direction_id) ?? [];
     const add = (child: MapChild) => { map.addChild(child); overlays.current.push(child); };
     const allCoordinates: LngLat[] = [];
     geometry.lines.forEach((coordinates) => {
@@ -131,7 +131,8 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const button = document.createElement("button");
       button.type = "button";
       button.className = `yandex-stop-marker${point.stop_id === selectedStopId ? " selected" : ""}`;
-      button.style.background = snapshot ? colorForValue(point.predicted_load, snapshot) : route.color;
+      button.style.background = noDemoService ? "#8b98a8" : snapshot
+        ? colorForValue(point.predicted_load, snapshot) : route.color;
       button.title = `${point.stop_name} · индекс ${point.predicted_load.toLocaleString("ru-RU")}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => onStopSelect(point.stop_id));
