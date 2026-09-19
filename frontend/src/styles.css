@@ -54,7 +54,9 @@ a { color: #173f71; text-underline-offset: .2em; }
 .map-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: .8rem; }
 .map-heading h2 { font-size: 1.15rem; }
 .map-heading p, .map-note { margin: .4rem 0 0; color: #536177; font-size: .83rem; line-height: 1.4; }
-.map-time { flex-shrink: 0; color: #173f71; font-weight: 650; font-size: .85rem; }
+.map-clock { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: .15rem; color: #536177; font-size: .75rem; }
+.map-clock time { color: #173f71; font-size: 1rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.map-time { color: #536177; font-weight: 600; font-size: .75rem; }
 .map-empty { margin: .7rem 0; color: #536177; }
 .map-legend { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin-top: .85rem; font-size: .83rem; }
 .map-legend span { display: inline-flex; align-items: center; gap: .4rem; }
@@ -95,6 +97,8 @@ a { color: #173f71; text-underline-offset: .2em; }
 }
 
 @media (max-width: 580px) {
+  .map-heading { flex-direction: column; }
+  .map-clock { align-items: flex-start; }
   .map-container {
     height: 300px;
   }

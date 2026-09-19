@@ -22,11 +22,13 @@ export function ForecastTable({ forecast }: ForecastTableProps) {
     <div className="table-wrap">
       <table>
         <caption>
-          Прогноз по временным интервалам. Время в строке — начало интервала.
+          {forecast.resolution === "schedule"
+            ? "Прогноз в моменты прибытия по расписанию."
+            : "Прогноз по временным интервалам. Время в строке — начало интервала."}
         </caption>
         <thead>
           <tr>
-            <th scope="col">Начало интервала, МСК</th>
+            <th scope="col">{forecast.resolution === "schedule" ? "Прибытие, МСК" : "Начало интервала, МСК"}</th>
             <th scope="col">Индекс загрузки</th>
             <th scope="col">Минимальная оценка</th>
             <th scope="col">Максимальная оценка</th>

@@ -10,6 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/migrations/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+      - ./db/migrations/002_transit_schedule.sql:/docker-entrypoint-initdb.d/002_transit_schedule.sql:ro
       - ./db/seed/002_demo.sql:/docker-entrypoint-initdb.d/002_demo.sql:ro
       - ./db:/opt/transport/db:ro
     healthcheck:
@@ -52,6 +53,24 @@ services:
       - "127.0.0.1:5173:80"
     depends_on:
       backend:
+        condition: service_healthy
+  schedule-import:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-transport}
+      POSTGRES_USER: ${POSTGRES_USER:-transport}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-transport_local_only}
+    volumes:
+      - ./db:/project/db:ro
+      - ./mock_data:/project/mock_data:ro
+    command: ["python", "/project/db/scripts/import_schedule.py"]
+    depends_on:
+      db:
         condition: service_healthy
 volumes:
   postgres_data:

@@ -30,6 +30,12 @@ def validate_prediction(request: ForecastRequest, response: ForecastResponse) ->
     if (result.horizon != request.horizon or result.resolution != request.resolution
             or result.forecast_origin != request.forecast_origin):
         raise ValueError("Provider returned a different horizon, resolution or origin")
-    if [point.timestamp for point in result.points] != request.timestamps():
+    timestamps = [point.timestamp for point in result.points]
+    if request.resolution == "schedule":
+        if timestamps != sorted(set(timestamps)) or any(
+            timestamp < request.start or timestamp >= request.end for timestamp in timestamps
+        ):
+            raise ValueError("Provider returned unordered or out-of-range timetable points")
+    elif timestamps != request.timestamps():
         raise ValueError("Provider returned an incomplete, unordered or different time grid")
     return result

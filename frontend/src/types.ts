@@ -16,7 +16,7 @@ export interface ForecastRequest {
   stop_id?: string;
   direction_id?: 0 | 1;
   horizon: Horizon;
-  resolution?: "PT1M" | "PT1H" | "P1D" | "P1M";
+  resolution?: "schedule" | "PT1M" | "PT1H" | "P1D" | "P1M";
   from: string;
   to: string;
   forecast_origin?: string;
@@ -31,7 +31,7 @@ export interface ForecastResponse {
   contract_version: "1.0";
   series_key: { route_id: string; stop_id: string | null; direction_id: 0 | 1 | null };
   horizon: Horizon;
-  resolution: "PT1M" | "PT1H" | "P1D" | "P1M";
+  resolution: "schedule" | "PT1M" | "PT1H" | "P1D" | "P1M";
   forecast_origin: string;
   value_unit: string;
   aggregation: "demo_mean" | "sum" | "mean" | "max" | "last";

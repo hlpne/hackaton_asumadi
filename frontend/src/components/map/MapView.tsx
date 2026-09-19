@@ -10,6 +10,21 @@ const LOAD_COLORS = {
   high: "#d9444b",
 };
 
+const liveClockFormatter = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: "Europe/Moscow",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+const selectedTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: "Europe/Moscow",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 function loadColor(value: number, snapshot: MapForecastResponse): string {
   if (snapshot.value_unit === "demo_index") {
     return value < 35 ? LOAD_COLORS.low : value < 55 ? LOAD_COLORS.medium : LOAD_COLORS.high;
@@ -37,8 +52,14 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, focus
   const [geometry, setGeometry] = useState<RouteGeometry | null>(null);
   const [geometryError, setGeometryError] = useState("");
   const [yandexError, setYandexError] = useState("");
+  const [now, setNow] = useState(() => new Date());
   const onYandexError = useCallback((message: string) => setYandexError(message), []);
   const yandexKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY?.trim() ?? "";
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     setGeometry(null);
@@ -80,11 +101,15 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, focus
       <div className="map-heading">
         <div>
           <h2>Карта маршрута{route ? ` · ${route.name}` : ""}</h2>
-          <p>{segment ? `Участок: ${segment.from.name} → ${segment.to.name}. ` : ""}Пути и остановки — геоданные OpenStreetMap; прогноз загрузки остаётся демонстрационным.</p>
+          <p>{segment ? `Участок: ${segment.from.name} → ${segment.to.name}. ` : ""}Нажмите на остановку, чтобы перестроить график для неё; границы участка при этом сохранятся.</p>
         </div>
-        {snapshot && <span className="map-time">{new Intl.DateTimeFormat("ru-RU", {
-          timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-        }).format(new Date(snapshot.timestamp))} МСК</span>}
+        <div className="map-clock">
+          <span>Сейчас в Москве</span>
+          <time dateTime={now.toISOString()}>{liveClockFormatter.format(now)} МСК</time>
+          {snapshot && <span className="map-time">
+            Выбранное время: {selectedTimeFormatter.format(new Date(snapshot.timestamp))} МСК
+          </span>}
+        </div>
       </div>
       {yandexKey ? <YandexMap
         apiKey={yandexKey}
@@ -104,7 +129,7 @@ export function MapView({ route, snapshot, stops, segment, selectedStopId, focus
       {segment && geometry && displayGeometry?.lines.length === 0 &&
         <p className="map-empty" role="alert">Для выбранного участка не удалось выделить путь из геометрии OSM.</p>}
       {yandexError && <p className="map-empty" role="alert">{yandexError} Подложка OpenStreetMap отключена.</p>}
-      {noDemoService && <p className="map-empty" role="status">В это время рейсов нет по демонстрационному графику (примерно с 5:00 до 1:00 МСК). Точное расписание не подключено.</p>}
+      {noDemoService && <p className="map-empty" role="status">В выбранный момент прогноз карты равен нулю. График ниже строится отдельно по прибытиям из расписания.</p>}
       {!snapshot?.points.length && <p className="map-empty" role="status">
         {busy ? "Загружаем остановки и прогноз…" : "Для выбранных фильтров нет данных карты."}
       </p>}

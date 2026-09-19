@@ -53,6 +53,7 @@
       "anyOf": [
         {
           "enum": [
+            "schedule",
             "PT1M",
             "PT1H",
             "P1D",
