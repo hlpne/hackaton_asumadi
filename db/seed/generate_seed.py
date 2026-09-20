@@ -55,18 +55,25 @@ def build_data() -> dict[str, list[dict]]:
         "routes": [],
         "stops": [],
         "route_stops": [],
+        "model_runs": [{
+            "model_version": MODEL_VERSION,
+            "is_mock": True,
+            "value_unit": "demo_index",
+            "aggregation": "demo_mean",
+            "interval_level": None,
+        }],
         "forecasts": [],
     }
     for route in geography["routes"]:
         route_id = route["id"]
         base_load = route_base(route_id)
         data["routes"].append({"id": route_id, "name": route["name"], "color": route["color"]})
-        route_stop_ids = []
+        route_stop_ids: list[tuple[str, int]] = []
         for direction, geometry in enumerate(route["directions"]):
             for stop_index, source_stop in enumerate(geometry["stops"]):
                 suffix = f"s{stop_index + 1:02}" if direction == 0 else f"r{stop_index + 1:02}"
                 stop_id = f"{route_id}-{suffix}"
-                route_stop_ids.append(stop_id)
+                route_stop_ids.append((stop_id, direction))
                 data["stops"].append({
                     "id": stop_id,
                     "name": source_stop["name"],
@@ -80,16 +87,19 @@ def build_data() -> dict[str, list[dict]]:
                     "direction_id": direction,
                 })
 
-        series = [(None, f"{route_id}/route")]
-        series.extend((stop_id, f"{route_id}/{stop_id}") for stop_id in route_stop_ids)
-        for stop_id, series_key in series:
+        series = [(None, None, f"{route_id}/route")]
+        series.extend(
+            (stop_id, direction_id, f"{route_id}/{stop_id}")
+            for stop_id, direction_id in route_stop_ids
+        )
+        for stop_id, direction_id, series_key in series:
             for hour in range(FORECAST_HOURS):
                 timestamp = FORECAST_ORIGIN + timedelta(hours=hour)
                 predicted_load = hour_value(series_key, timestamp, base_load)
                 data["forecasts"].append({
                     "route_id": route_id,
                     "stop_id": stop_id,
-                    "direction_id": None,
+                    "direction_id": direction_id,
                     "timestamp": timestamp,
                     "horizon": "day",
                     "resolution": "PT1H",
@@ -124,6 +134,7 @@ def insert_statement(table: str, rows: list[dict]) -> str:
         "routes": ("id",),
         "stops": ("id",),
         "route_stops": ("route_id", "direction_id", "sequence"),
+        "model_runs": ("model_version",),
         "forecasts": (
             "route_id", "stop_id", "direction_id", "timestamp",
             "horizon", "forecast_origin", "model_version",
@@ -156,7 +167,7 @@ def main() -> None:
         "-- OSM geography snapshot with deterministic synthetic load forecasts; not real passenger counts.",
         "BEGIN;",
     ]
-    for table in ("routes", "stops", "route_stops", "forecasts"):
+    for table in ("routes", "stops", "route_stops", "model_runs", "forecasts"):
         statements.append(insert_statement(table, data[table]))
     statements.append("COMMIT;")
     (ROOT / "db/seed/002_demo.sql").write_text(

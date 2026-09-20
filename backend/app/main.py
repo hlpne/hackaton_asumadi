@@ -5,12 +5,20 @@ from typing import Annotated
 import psycopg
 from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from app.catalog import Catalog, MemoryCatalog, PostgresCatalog
 from app.config import ROOT, Settings
+from app.forecast_persistence import (
+    DisabledForecastRepository,
+    ForecastPersistenceDisabledError,
+    ForecastPersistenceResult,
+    ForecastRepository,
+    ModelRunConflictError,
+    PostgresForecastRepository,
+)
 from app.forecast_service import (
     InvalidPredictionError,
     PredictorUnavailableError,
@@ -44,7 +52,12 @@ def get_predictor(request: Request) -> Predictor:
     return request.app.state.predictor
 
 
-def create_app(settings: Settings | None = None, predictor: Predictor | None = None, catalog: Catalog | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    predictor: Predictor | None = None,
+    catalog: Catalog | None = None,
+    forecast_repository: ForecastRepository | None = None,
+) -> FastAPI:
     config = settings or Settings.from_env()
     logging.basicConfig(
         level=getattr(logging, config.log_level),
@@ -55,11 +68,19 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         description="Contract v1. Demo predictions do not represent real passenger counts.",
         docs_url=None, redoc_url=None, servers=[{"url": "."}],
         responses={422: {"model": ErrorResponse}, 404: {"model": ErrorResponse},
-                   503: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+                   409: {"model": ErrorResponse}, 503: {"model": ErrorResponse},
+                   502: {"model": ErrorResponse}},
     )
     application.state.settings = config
     application.state.predictor = predictor if predictor is not None else load_predictor(config.predictor_factory)
-    store = catalog if catalog is not None else (PostgresCatalog(config) if config.catalog_backend == "postgres" else MemoryCatalog())
+    store = catalog if catalog is not None else (
+        PostgresCatalog(config) if config.catalog_backend == "postgres" else MemoryCatalog()
+    )
+    writer = forecast_repository or (
+        PostgresForecastRepository(config)
+        if config.catalog_backend == "postgres"
+        else DisabledForecastRepository()
+    )
     geometry_data = json.loads((ROOT / "mock_data" / "osm_trams.json").read_text(encoding="utf-8"))
 
     @application.exception_handler(RequestValidationError)
@@ -84,6 +105,14 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     async def predictor_unavailable(_: Request, __: PredictorUnavailableError) -> JSONResponse:
         return error(503, "PREDICTOR_UNAVAILABLE", "Prediction provider is unavailable")
 
+    @application.exception_handler(ForecastPersistenceDisabledError)
+    async def persistence_disabled(_: Request, __: ForecastPersistenceDisabledError) -> JSONResponse:
+        return error(503, "PERSISTENCE_DISABLED", "Forecast persistence requires PostgreSQL")
+
+    @application.exception_handler(ModelRunConflictError)
+    async def model_run_conflict(_: Request, __: ModelRunConflictError) -> JSONResponse:
+        return error(409, "MODEL_VERSION_CONFLICT", "Model version metadata conflicts with model_runs")
+
     @application.exception_handler(Exception)
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
         logger.exception("Unhandled application error: %s", type(exc).__name__)
@@ -93,9 +122,25 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         if not any(item.id == route_id for item in store.routes()):
             raise HTTPException(404, "Route not found")
 
+    def validate_series(query: ForecastRequest, *, resolve_direction: bool = False) -> None:
+        ensure_route(query.route_id)
+        route_stops = store.stops(query.route_id)
+        if query.direction_id is not None:
+            route_stops = [item for item in route_stops if item.direction_id == query.direction_id]
+            if not route_stops:
+                raise HTTPException(404, "Direction not found on this route")
+        if query.stop_id is not None:
+            matching_stops = [item for item in route_stops if item.id == query.stop_id]
+            if not matching_stops:
+                raise HTTPException(404, "Stop not found on the selected route/direction")
+            if resolve_direction and query.direction_id is None:
+                directions = {item.direction_id for item in matching_stops}
+                if len(directions) != 1:
+                    raise HTTPException(422, "direction_id is required for an ambiguous route stop")
+                query.direction_id = directions.pop()
+
     @application.get("/docs", include_in_schema=False)
     def swagger():
-        # Relative paths work both on :8000/docs and behind the /api proxy.
         return get_swagger_ui_html(openapi_url="./openapi.json", title="Transport API")
 
     def liveness_payload() -> dict:
@@ -115,17 +160,14 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
 
     @application.get("/health/live", response_model=LivenessResponse, tags=["health"])
     def health_live() -> dict:
-        """Process liveness; does not contact external dependencies."""
         return liveness_payload()
 
     @application.get("/health/ready", response_model=ReadinessResponse, tags=["health"])
     def health_ready() -> dict:
-        """Readiness probe; verifies PostgreSQL when the PostgreSQL catalog is enabled."""
         return readiness_payload()
 
     @application.get("/health", response_model=ReadinessResponse, tags=["health"])
     def health() -> dict:
-        """Backward-compatible readiness endpoint required by the MVP contract."""
         return readiness_payload()
 
     @application.get("/routes", response_model=list[Route], tags=["catalog"])
@@ -156,16 +198,21 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         }
 
     @application.get("/forecast", response_model=ForecastResponse, tags=["forecast"])
-    def forecast(query: Annotated[ForecastRequest, Query()], provider: Annotated[Predictor, Depends(get_predictor)]) -> ForecastResponse:
-        ensure_route(query.route_id)
-        route_stops = store.stops(query.route_id)
-        if query.direction_id is not None:
-            route_stops = [item for item in route_stops if item.direction_id == query.direction_id]
-            if not route_stops:
-                raise HTTPException(404, "Direction not found on this route")
-        if query.stop_id is not None and not any(item.id == query.stop_id for item in route_stops):
-            raise HTTPException(404, "Stop not found on the selected route/direction")
+    def forecast(
+        query: Annotated[ForecastRequest, Query()],
+        provider: Annotated[Predictor, Depends(get_predictor)],
+    ) -> ForecastResponse:
+        validate_series(query)
         return predict(provider, query)
+
+    @application.post("/forecast", response_model=ForecastPersistenceResult, tags=["forecast"])
+    def persist_forecast(
+        query: ForecastRequest,
+        provider: Annotated[Predictor, Depends(get_predictor)],
+    ) -> ForecastPersistenceResult:
+        """Compute, validate and atomically upsert one forecast series into PostgreSQL."""
+        validate_series(query, resolve_direction=True)
+        return writer.save(predict(provider, query))
 
     @application.get("/forecast/map", response_model=MapForecastResponse, tags=["forecast"])
     def forecast_map(

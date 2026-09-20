@@ -1,5 +1,5 @@
 -- Official public-transport calendar and stop times imported from data.mos.ru JSON exports.
-BEGIN;
+-- Transactions and migration history are owned by db/scripts/manage.sh.
 
 CREATE TABLE IF NOT EXISTS transit_calendars (
     service_id text PRIMARY KEY,
@@ -46,5 +46,3 @@ CREATE TABLE IF NOT EXISTS transit_stop_map (
     distance_m double precision NOT NULL CHECK (distance_m >= 0),
     PRIMARY KEY (route_id, stop_id)
 );
-
-COMMIT;

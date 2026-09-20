@@ -17,7 +17,6 @@
           "health"
         ],
         "summary": "Health Live",
-        "description": "Process liveness; does not contact external dependencies.",
         "operationId": "health_live_health_live_get",
         "responses": {
           "200": {
@@ -42,6 +41,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -79,7 +88,6 @@
           "health"
         ],
         "summary": "Health Ready",
-        "description": "Readiness probe; verifies PostgreSQL when the PostgreSQL catalog is enabled.",
         "operationId": "health_ready_health_ready_get",
         "responses": {
           "200": {
@@ -104,6 +112,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -141,7 +159,6 @@
           "health"
         ],
         "summary": "Health",
-        "description": "Backward-compatible readiness endpoint required by the MVP contract.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -166,6 +183,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -231,6 +258,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -314,6 +351,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "503": {
             "content": {
@@ -401,6 +448,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "503": {
             "content": {
@@ -580,6 +637,96 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Persist Forecast",
+        "description": "Compute, validate and atomically upsert one forecast series into PostgreSQL.",
+        "operationId": "persist_forecast_forecast_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastPersistenceResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -721,6 +868,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "503": {
             "content": {
@@ -876,6 +1033,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "503": {
             "content": {
               "application/json": {
@@ -942,6 +1109,58 @@
         ],
         "title": "ErrorResponse"
       },
+      "ForecastPersistenceResult": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Contract Version",
+            "default": "1.0"
+          },
+          "series_key": {
+            "$ref": "#/components/schemas/SeriesKey"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/Horizon"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "PT1M",
+              "PT1H",
+              "P1D",
+              "P1M"
+            ],
+            "title": "Resolution"
+          },
+          "forecast_origin": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Forecast Origin"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "saved_points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Saved Points"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "series_key",
+          "horizon",
+          "resolution",
+          "forecast_origin",
+          "model_version",
+          "saved_points"
+        ],
+        "title": "ForecastPersistenceResult"
+      },
       "ForecastPoint": {
         "properties": {
           "timestamp": {
@@ -986,6 +1205,94 @@
           "predicted_load"
         ],
         "title": "ForecastPoint"
+      },
+      "ForecastRequest": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Route Id"
+          },
+          "stop_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Id"
+          },
+          "direction_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction Id"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/Horizon"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "schedule",
+                  "PT1M",
+                  "PT1H",
+                  "P1D",
+                  "P1M"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "From"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To"
+          },
+          "forecast_origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Origin"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "route_id",
+          "horizon",
+          "from",
+          "to"
+        ],
+        "title": "ForecastRequest"
       },
       "ForecastResponse": {
         "properties": {
