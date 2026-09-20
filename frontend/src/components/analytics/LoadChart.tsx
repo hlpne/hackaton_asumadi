@@ -43,12 +43,9 @@ export function LoadChart({ forecast }: LoadChartProps) {
 
   return (
     <div className="chart-wrapper">
-      <div className="chart-header">
-        <h3 className="chart-title">Динамика прогноза</h3>
-        {forecast.value_unit === "demo_index" && (
-          <p className="chart-subtitle">Зоны демонстрационного индекса: низкая до 35, средняя 35–54, высокая от 55.</p>
-        )}
-      </div>
+      {forecast.value_unit === "demo_index" && (
+        <p className="chart-subtitle">Демонстрационный индекс: низкая нагрузка до 35, средняя 35–54, высокая от 55.</p>
+      )}
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
@@ -59,7 +56,8 @@ export function LoadChart({ forecast }: LoadChartProps) {
               <ReferenceArea y1={55} y2={chartMax} fill="#d9444b" fillOpacity={0.08} stroke="none" />
             </>
           )}
-          <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8} />
+          <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8}
+            interval={forecast.horizon === "year" ? 1 : forecast.horizon === "month" ? 3 : 2} />
           <YAxis stroke="#536177" fontSize={12} tickMargin={4} domain={[0, chartMax]} />
           <Tooltip
             contentStyle={{
