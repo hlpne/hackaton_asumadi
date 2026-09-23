@@ -14,6 +14,7 @@ interface RouteDetailsDashboardProps {
   snapshot: MapForecastResponse | null;
   segment: RouteSegment | null;
   directionId: 0 | 1;
+  startStopId: string;
   focusedPoint: MapForecastPoint | null;
   selectedStopId: string;
   busy: boolean;
@@ -29,7 +30,7 @@ interface RouteDetailsDashboardProps {
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 const time = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
 
-export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, focusedPoint, selectedStopId, busy,
+export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, startStopId, focusedPoint, selectedStopId, busy,
   forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
@@ -38,7 +39,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
     .sort((a, b) => b.predicted_load - a.predicted_load || a.sequence - b.sequence);
   const peakStop = ranked[0];
   const average = points.length ? points.reduce((sum, point) => sum + point.predicted_load, 0) / points.length : null;
-  const visibleStopCount = stops.filter((stop) => stop.direction_id === direction).length;
+  const visibleStopCount = segment?.stops.length ?? stops.filter((stop) => stop.direction_id === direction).length;
   const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
 
   return <div className="detail-dashboard">
@@ -50,12 +51,12 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковая остановка</span><strong className="detail-metric-name">{peakStop?.stop_name ?? "—"}</strong>
         <small>{peakStop ? `Индекс ${number.format(peakStop.predicted_load)}` : "Нет данных для среза"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановок</span><strong>{visibleStopCount || "—"}</strong>
-        <small>Направление {direction + 1}</small></div></article>
+        <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
 
     <div className="detail-main-grid">
       <MapView route={route} snapshot={snapshot} stops={stops} segment={segment} directionId={direction}
-        selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
+        startStopId={startStopId} selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
         onStopSelect={(stopId) => {
           const point = points.find((item) => item.stop_id === stopId);
           if (point) onSelectStop(point);

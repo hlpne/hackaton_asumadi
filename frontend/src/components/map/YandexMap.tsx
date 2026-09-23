@@ -54,6 +54,7 @@ interface YandexMapProps {
   route?: Route;
   snapshot: MapForecastResponse | null;
   visibleStopIds: string;
+  startStopId: string;
   selectedStopId: string;
   focusedPoint: MapForecastPoint | null;
   colorForValue: (value: number, snapshot: MapForecastResponse) => string;
@@ -61,7 +62,7 @@ interface YandexMapProps {
   onError: (message: string) => void;
 }
 
-export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError }: YandexMapProps) {
+export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError }: YandexMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
@@ -131,10 +132,10 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
     points.forEach((point) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `yandex-stop-marker${point.stop_id === selectedStopId ? " selected" : ""}`;
+      button.className = `yandex-stop-marker${point.stop_id === startStopId ? " segment-start" : ""}${point.stop_id === selectedStopId ? " selected" : ""}`;
       button.style.background = noDemoService ? "#8b98a8" : snapshot
         ? colorForValue(point.predicted_load, snapshot) : route.color;
-      button.title = `${point.stop_name} · индекс ${point.predicted_load.toLocaleString("ru-RU")}`;
+      button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name} · индекс ${point.predicted_load.toLocaleString("ru-RU")}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => onStopSelect(point.stop_id));
       add(new api.YMapMarker({ coordinates: [point.lon, point.lat] }, button));
@@ -147,7 +148,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const lat = allCoordinates.map((point) => point[1]);
       map.update({ location: { bounds: [[Math.min(...lon), Math.min(...lat)], [Math.max(...lon), Math.max(...lat)]] } });
     }
-  }, [ready, geometry, route, snapshot, visibleStopIds, selectedStopId, colorForValue, onStopSelect]);
+  }, [ready, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, colorForValue, onStopSelect]);
 
   useEffect(() => {
     if (!ready || !mapRef.current || !focusedPoint || focusedPoint.route_id !== route?.id ||

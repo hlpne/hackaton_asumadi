@@ -6,7 +6,6 @@ interface SidebarProps {
   routes: Route[];
   stops: RouteStop[];
   routeId: string;
-  directionId: 0 | 1;
   fromStopId: string;
   toStopId: string;
   horizon: Horizon;
@@ -19,7 +18,6 @@ interface SidebarProps {
   loadingCatalog: boolean;
   loadingStops: boolean;
   onRouteChange: (id: string) => void;
-  onDirectionChange: (id: 0 | 1) => void;
   onFromStopChange: (id: string) => void;
   onToStopChange: (id: string) => void;
   onHorizonChange: (horizon: Horizon) => void;
@@ -35,7 +33,6 @@ export function Sidebar({
   routes,
   stops,
   routeId,
-  directionId,
   fromStopId,
   toStopId,
   horizon,
@@ -48,7 +45,6 @@ export function Sidebar({
   loadingCatalog,
   loadingStops,
   onRouteChange,
-  onDirectionChange,
   onFromStopChange,
   onToStopChange,
   onHorizonChange,
@@ -59,10 +55,8 @@ export function Sidebar({
   onRefresh,
 }: SidebarProps) {
   const fromStop = stops.find((stop) => stop.id === fromStopId);
-  const toOptions = fromStop
-    ? stops.filter((stop) => stop.direction_id === fromStop.direction_id && stop.sequence > fromStop.sequence)
-      .sort((a, b) => a.sequence - b.sequence)
-    : [];
+  const allStops = Array.from(new Map(stops.map((stop) => [stop.name, stop])).values())
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
   const invalidTime = horizon === "day" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime);
 
   if (mode === "details") return (
@@ -73,10 +67,18 @@ export function Sidebar({
           {routes.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
         </select>
       </label>
-      <label>Направление
-        <select value={directionId} disabled={loadingStops || !routeId}
-          onChange={(event) => onDirectionChange(Number(event.target.value) as 0 | 1)}>
-          <option value={0}>Направление 1</option><option value={1}>Направление 2</option>
+      <label>От остановки
+        <select value={fromStopId} disabled={loadingStops || !routeId} onChange={(event) => onFromStopChange(event.target.value)}>
+          <option value="">Не выбрана</option>
+          {allStops.map((stop) => <option key={stop.id} value={stop.id}>{stop.name}</option>)}
+        </select>
+      </label>
+      <label>До остановки
+        <select value={toStopId} disabled={loadingStops || !fromStop}
+          onChange={(event) => onToStopChange(event.target.value)}>
+          <option value="">{fromStop ? "Выберите конечную" : "Сначала выберите «От»"}</option>
+          {allStops.filter((stop) => stop.id !== fromStopId)
+            .map((stop) => <option key={stop.id} value={stop.id}>{stop.name}</option>)}
         </select>
       </label>
       {horizon === "month" ? <label className="compact-period">Период
@@ -100,25 +102,6 @@ export function Sidebar({
         (horizon === "month" && !monthPeriodValid)}>
         {busy ? "Загрузка…" : "Обновить прогноз"}
       </button>
-      <details className="segment-options">
-        <summary>Выбрать участок маршрута</summary>
-        <div className="segment-fields">
-          <label>От остановки
-            <select value={fromStopId} disabled={loadingStops || !routeId} onChange={(event) => onFromStopChange(event.target.value)}>
-              <option value="">Весь маршрут</option>
-              {stops.filter((stop) => stop.direction_id === directionId).sort((a, b) => a.sequence - b.sequence)
-                .map((stop) => <option key={stop.id} value={stop.id}>{stop.name}</option>)}
-            </select>
-          </label>
-          <label>До остановки
-            <select value={toStopId} disabled={loadingStops || !fromStop || !toOptions.length}
-              onChange={(event) => onToStopChange(event.target.value)}>
-              <option value="">{fromStop ? "Выберите конечную" : "Сначала выберите «От»"}</option>
-              {toOptions.map((stop) => <option key={stop.id} value={stop.id}>{stop.name}</option>)}
-            </select>
-          </label>
-        </div>
-      </details>
     </section>
   );
 

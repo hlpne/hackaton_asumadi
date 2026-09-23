@@ -61,7 +61,7 @@ function snapshotTimestamp(
 function forecastRange(date: string, horizon: Horizon, startTime: string, dateFrom: string, dateTo: string) {
   const from = snapshotTimestamp(date, horizon, startTime, dateFrom);
   if (horizon === "day") {
-    return { from, to: new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString(), resolution: "PT1H" as const };
+    return { from, to: new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString(), resolution: "schedule" as const };
   }
   if (horizon === "month") return { from, to: `${dateTo}T00:00:00+03:00`, resolution: "P1D" as const };
   const [year, month] = date.split("-").map(Number);
@@ -125,6 +125,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingStops, setLoadingStops] = useState(false);
+  const fromStop = stops.find((stop) => stop.id === fromStopId);
   const segment = buildRouteSegment(stops, fromStopId, toStopId);
 
   function navigate(nextPage: Page) {
@@ -217,8 +218,10 @@ export default function App() {
     }
     const controller = new AbortController();
     const range = forecastRange(date, horizon, startTime, dateFrom, dateTo);
-    const stopId = focusedPoint?.stop_id || segment?.from.id || forecastStopId || undefined;
-    const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
+    const direction = focusedPoint?.direction_id ?? segment?.directionId ?? fromStop?.direction_id ?? directionId;
+    const directionStartStop = stops.filter((stop) => stop.direction_id === direction)
+      .sort((a, b) => a.sequence - b.sequence)[0];
+    const stopId = focusedPoint?.stop_id || segment?.from.id || forecastStopId || directionStartStop?.id;
     setRouteForecast(null);
     setForecastError("");
     setForecastBusy(true);
@@ -229,7 +232,8 @@ export default function App() {
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
   }, [page, routeId, horizon, date, dateFrom, dateTo, startTime, directionId,
-    focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId, forecastStopId, retry]);
+    focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId,
+    fromStop?.direction_id, forecastStopId, stops, retry]);
 
   useEffect(() => {
     if (page !== "analytics") return;
@@ -268,7 +272,6 @@ export default function App() {
           routes={routes}
           stops={stops}
           routeId={routeId}
-          directionId={directionId}
           fromStopId={fromStopId}
           toStopId={toStopId}
           horizon={horizon}
@@ -288,13 +291,6 @@ export default function App() {
             setForecastStopId("");
             setMapForecast(null);
             setRouteId(id);
-          }}
-          onDirectionChange={(id) => {
-            setFocusedPoint(null);
-            setDirectionId(id);
-            setFromStopId("");
-            setToStopId("");
-            setForecastStopId("");
           }}
           onFromStopChange={(id) => {
             setFocusedPoint(null);
@@ -317,7 +313,8 @@ export default function App() {
             snapshot={mapForecast}
             stops={stops}
             segment={segment}
-            directionId={directionId}
+            directionId={fromStop?.direction_id ?? directionId}
+            startStopId={segment?.from.id ?? forecastStopId}
             selectedStopId={focusedPoint?.stop_id ?? forecastStopId}
             focusedPoint={focusedPoint}
             busy={busy}
@@ -328,7 +325,6 @@ export default function App() {
             horizon={horizon}
             onSelectStop={(point) => {
               setFocusedPoint(point);
-              setDirectionId(point.direction_id);
               setForecastStopId(point.stop_id);
             }}
             onRetryForecast={() => setRetry((value) => value + 1)}

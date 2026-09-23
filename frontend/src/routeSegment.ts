@@ -11,14 +11,26 @@ export interface RouteSegment {
 
 export function buildRouteSegment(stops: RouteStop[], fromId: string, toId: string): RouteSegment | null {
   if (!fromId || !toId) return null;
-  const from = stops.find((stop) => stop.id === fromId);
-  const to = stops.find((stop) => stop.id === toId);
-  if (!from || !to || from.direction_id !== to.direction_id || from.sequence >= to.sequence) return null;
+  const selectedFrom = stops.find((stop) => stop.id === fromId);
+  const selectedTo = stops.find((stop) => stop.id === toId);
+  if (!selectedFrom || !selectedTo) return null;
+
+  const candidates = ([0, 1] as const).flatMap((directionId) => {
+    const fromMatches = stops.filter((stop) => stop.direction_id === directionId && stop.name === selectedFrom.name);
+    const toMatches = stops.filter((stop) => stop.direction_id === directionId && stop.name === selectedTo.name);
+    return fromMatches.flatMap((from) => toMatches
+      .filter((to) => from.sequence < to.sequence)
+      .map((to) => ({ from, to, directionId, distance: to.sequence - from.sequence })));
+  }).sort((a, b) => a.distance - b.distance);
+  const match = candidates[0];
+  if (!match) return null;
+
+  const { from, to, directionId } = match;
   return {
     from,
     to,
-    directionId: from.direction_id,
-    stops: stops.filter((stop) => stop.direction_id === from.direction_id &&
+    directionId,
+    stops: stops.filter((stop) => stop.direction_id === directionId &&
       stop.sequence >= from.sequence && stop.sequence <= to.sequence)
       .sort((a, b) => a.sequence - b.sequence),
   };
