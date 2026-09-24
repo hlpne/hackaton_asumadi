@@ -1,0 +1,178 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapTrifoldIcon } from "@phosphor-icons/react";
+import { getRouteGeometry } from "../../api";
+import type { MapForecastResponse, Route, RouteGeometry } from "../../types";
+import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 } from "./YandexMap";
+import { buildNetworkLines } from "./networkMapLines";
+
+const geometryCache = new Map<string, RouteGeometry>();
+
+interface NetworkMapProps {
+  routes: Route[];
+  snapshot: MapForecastResponse;
+}
+
+export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<YMapInstance | null>(null);
+  const apiRef = useRef<YMaps3 | null>(null);
+  const overlays = useRef<MapChild[]>([]);
+  const [ready, setReady] = useState(false);
+  const [geometries, setGeometries] = useState<RouteGeometry[]>([]);
+  const [geometryError, setGeometryError] = useState("");
+  const [mapError, setMapError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [hoveredRoute, setHoveredRoute] = useState<{ id: string; x: number; y: number } | null>(null);
+  const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY?.trim() ?? "";
+  const routeIds = routes.map((route) => route.id).join("|");
+  const coloredLines = useMemo(() => buildNetworkLines(geometries, routes, snapshot), [geometries, routes, snapshot]);
+  const routeNumbers = useMemo(() => new Map(routes.map((route) => [
+    route.id, route.name.split("·")[0].replace(/^Трамвай\s+/i, "").trim(),
+  ])), [routes]);
+  const showHover = (id: string, event: MouseEvent) => {
+    const bounds = container.current?.getBoundingClientRect();
+    if (!bounds) return;
+    setHoveredRoute({ id, x: Math.min(event.clientX - bounds.left + 12, bounds.width - 70),
+      y: Math.max(event.clientY - bounds.top - 36, 8) });
+  };
+
+  useEffect(() => {
+    if (!routeIds) return;
+    const controller = new AbortController();
+    const load = async () => {
+      setLoading(true);
+      setGeometryError("");
+      const ids = routeIds.split("|");
+      const requests = ids.flatMap((id) => [0, 1].map((direction) => ({ id, direction: direction as 0 | 1 })));
+      const loaded: RouteGeometry[] = [];
+      for (let index = 0; index < requests.length; index += 8) {
+        const batch = await Promise.allSettled(requests.slice(index, index + 8).map(async ({ id, direction }) => {
+          const key = `${id}/${direction}`;
+          if (geometryCache.has(key)) return geometryCache.get(key)!;
+          const geometry = await getRouteGeometry(id, direction, controller.signal);
+          geometryCache.set(key, geometry);
+          return geometry;
+        }));
+        if (controller.signal.aborted) return;
+        loaded.push(...batch.filter((result): result is PromiseFulfilledResult<RouteGeometry> => result.status === "fulfilled")
+          .map((result) => result.value));
+      }
+      if (controller.signal.aborted) return;
+      setGeometries(loaded);
+      if (!loaded.length) setGeometryError("Не удалось загрузить линии маршрутов.");
+      setLoading(false);
+    };
+    void load();
+    return () => controller.abort();
+  }, [routeIds]);
+
+  useEffect(() => {
+    if (!apiKey) return;
+    let cancelled = false;
+    loadYandex(apiKey).then((api) => {
+      if (cancelled || !container.current) return;
+      const map = new api.YMap(container.current, {
+        location: { center: [37.62, 55.75], zoom: 10 },
+        showScaleInCopyrights: true,
+      });
+      map.addChild(new api.YMapDefaultSchemeLayer({}));
+      map.addChild(new api.YMapDefaultFeaturesLayer({}));
+      mapRef.current = map;
+      apiRef.current = api;
+      setReady(true);
+    }).catch((failure: unknown) => {
+      if (!cancelled) setMapError(failure instanceof Error ? failure.message : "Не удалось загрузить карту");
+    });
+    return () => {
+      cancelled = true;
+      mapRef.current?.destroy();
+      mapRef.current = null;
+      apiRef.current = null;
+      overlays.current = [];
+      setReady(false);
+    };
+  }, [apiKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const api = apiRef.current;
+    if (!ready || !map || !api || !coloredLines.length) return;
+    overlays.current.forEach((child) => map.removeChild(child));
+    overlays.current = [];
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    coloredLines.forEach((group) => {
+      group.lines.forEach((coordinates) => coordinates.forEach(([lon, lat]) => {
+        minLon = Math.min(minLon, lon);
+        minLat = Math.min(minLat, lat);
+        maxLon = Math.max(maxLon, lon);
+        maxLat = Math.max(maxLat, lat);
+      }));
+      const feature = new api.YMapFeature({
+        geometry: { type: "MultiLineString", coordinates: group.lines },
+        style: { stroke: [{ width: 4, color: group.color, opacity: .9 }] },
+        onMouseEnter: (event: MouseEvent) => showHover(group.routeId, event),
+        onMouseLeave: () => setHoveredRoute(null),
+      });
+      map.addChild(feature);
+      overlays.current.push(feature);
+    });
+    if (Number.isFinite(minLon)) {
+      map.update({ location: { bounds: [[minLon, minLat], [maxLon, maxLat]] as [LngLat, LngLat] } });
+    }
+  }, [ready, coloredLines]);
+
+  const svgLines = useMemo(() => {
+    const lines = coloredLines.flatMap((group) => group.lines
+      .filter((coordinates) => coordinates.length > 1)
+      .map((coordinates) => ({ routeId: group.routeId, coordinates })));
+    if (!lines.length) return [];
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    lines.forEach((line) => line.coordinates.forEach(([lon, lat]) => {
+      minLon = Math.min(minLon, lon);
+      maxLon = Math.max(maxLon, lon);
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+    }));
+    const width = Math.max((maxLon - minLon) * Math.cos((minLat + maxLat) / 2 * Math.PI / 180), .001);
+    const height = Math.max(maxLat - minLat, .001);
+    const scale = Math.min(920 / width, 400 / height);
+    const offsetX = (1000 - width * scale) / 2;
+    const offsetY = (480 - height * scale) / 2;
+    const cosine = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
+    return coloredLines.map((group) => ({
+      routeId: group.routeId,
+      color: group.color,
+      path: group.lines.filter((coordinates) => coordinates.length > 1).map((coordinates) =>
+        coordinates.map(([lon, lat], index) =>
+          `${index === 0 ? "M" : "L"}${((lon - minLon) * cosine * scale + offsetX).toFixed(1)} ${((maxLat - lat) * scale + offsetY).toFixed(1)}`).join(" ")
+      ).join(" "),
+    })).filter((line) => line.path);
+  }, [coloredLines]);
+
+  const showFallback = !apiKey || Boolean(mapError);
+
+  return <section className="map-wrapper network-map" aria-labelledby="network-map-title">
+    <div className="map-heading"><div>
+      <h2 id="network-map-title"><MapTrifoldIcon weight="bold" aria-hidden="true" />Карта всей трамвайной сети</h2>
+      <p>Линии всех маршрутов и направлений. Нажмите маршрут в рейтинге, чтобы открыть его отдельно.</p>
+    </div></div>
+    <div className="map-stage">
+      {showFallback ? <div ref={container} className="map-container network-map-fallback">
+        {svgLines.length > 0 && <svg viewBox="0 0 1000 480" role="img" aria-label="Схема всех трамвайных маршрутов Москвы" preserveAspectRatio="xMidYMid meet">
+          {svgLines.map((line, index) => <path key={`${line.routeId}/${index}`} d={line.path}
+            fill="none" stroke={line.color} strokeWidth="3.8" strokeOpacity=".9"
+            strokeLinecap="round" strokeLinejoin="round"
+            onMouseMove={(event) => showHover(line.routeId, event.nativeEvent)}
+            onMouseLeave={() => setHoveredRoute(null)}><title>Маршрут {routeNumbers.get(line.routeId) ?? line.routeId}</title></path>)}
+        </svg>}
+        {!loading && !svgLines.length && <p>Нет линий маршрутов для отображения.</p>}
+      </div> : <div ref={container} className="map-container" aria-label="Карта Яндекса со всеми трамвайными маршрутами" />}
+      {hoveredRoute && <div className="map-route-tooltip" style={{ left: hoveredRoute.x, top: hoveredRoute.y }} role="status">
+        Маршрут {routeNumbers.get(hoveredRoute.id) ?? hoveredRoute.id}
+      </div>}
+      <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
+    </div>
+    {loading && <p className="map-empty" role="status">Загружаем линии маршрутов…</p>}
+    {!loading && geometryError && <p className="map-empty" role="alert">{geometryError}</p>}
+  </section>;
+}

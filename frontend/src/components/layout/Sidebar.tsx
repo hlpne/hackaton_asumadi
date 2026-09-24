@@ -1,5 +1,6 @@
 import type { Horizon, Route, RouteStop } from "../../types";
 import { horizons } from "../../constants";
+import { DatePicker } from "./DatePicker";
 
 interface SidebarProps {
   mode?: "details" | "analytics";
@@ -13,7 +14,6 @@ interface SidebarProps {
   dateFrom: string;
   dateTo: string;
   monthPeriodValid: boolean;
-  startTime: string;
   busy: boolean;
   loadingCatalog: boolean;
   loadingStops: boolean;
@@ -24,7 +24,6 @@ interface SidebarProps {
   onDateChange: (date: string) => void;
   onDateFromChange: (date: string) => void;
   onDateToChange: (date: string) => void;
-  onStartTimeChange: (time: string) => void;
   onRefresh: () => void;
 }
 
@@ -40,7 +39,6 @@ export function Sidebar({
   dateFrom,
   dateTo,
   monthPeriodValid,
-  startTime,
   busy,
   loadingCatalog,
   loadingStops,
@@ -51,13 +49,11 @@ export function Sidebar({
   onDateChange,
   onDateFromChange,
   onDateToChange,
-  onStartTimeChange,
   onRefresh,
 }: SidebarProps) {
   const fromStop = stops.find((stop) => stop.id === fromStopId);
   const allStops = Array.from(new Map(stops.map((stop) => [stop.name, stop])).values())
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  const invalidTime = horizon === "day" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime);
 
   if (mode === "details") return (
     <section className="filters filters-compact" aria-label="Параметры прогноза">
@@ -81,18 +77,14 @@ export function Sidebar({
             .map((stop) => <option key={stop.id} value={stop.id}>{stop.name}</option>)}
         </select>
       </label>
-      {horizon === "month" ? <label className="compact-period">Период
+      {horizon === "month" ? <div className="compact-period date-field-group"><span className="field-label">Период</span>
         <div className="period-fields">
-          <input type="date" value={dateFrom} onChange={(event) => onDateFromChange(event.target.value)} aria-label="Начало периода" />
+          <DatePicker label="Начало" value={dateFrom} onChange={onDateFromChange} />
           <span className="period-sep">—</span>
-          <input type="date" value={dateTo} onChange={(event) => onDateToChange(event.target.value)} aria-label="Конец периода" />
+          <DatePicker label="Конец" value={dateTo} onChange={onDateToChange} />
         </div>
-      </label> : <label>Дата
-        <input type="date" min="2000-01-01" max="2098-12-31" value={date} onChange={(event) => onDateChange(event.target.value)} />
-      </label>}
-      {horizon === "day" && <label>Время, МСК
-        <input type="time" value={startTime} onChange={(event) => onStartTimeChange(event.target.value)} />
-      </label>}
+      </div> : <DatePicker label="Дата" value={date} onChange={onDateChange} />}
+      {/* Выбор времени скрыт: дневной график строится за полные сутки. */}
       <label>Горизонт прогноза
         <select value={horizon} onChange={(event) => onHorizonChange(event.target.value as Horizon)}>
           {Object.entries(horizons).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
@@ -106,7 +98,7 @@ export function Sidebar({
   );
 
   return (
-    <section className={`filters filters-analytics${horizon === "day" ? " filters-analytics--day" : ""}`} aria-label="Параметры аналитики">
+    <section className="filters filters-analytics" aria-label="Параметры аналитики">
       <label>
         Горизонт
         <select
@@ -122,43 +114,31 @@ export function Sidebar({
       </label>
 
       {horizon === "month" ? (
-        <label className="period-label">
-          Период
+        <div className="period-label date-field-group">
+          <span className="field-label">Период</span>
           <div className="period-fields">
-            <input type="date" min="2000-01-01" max="2098-12-31" value={dateFrom}
-              onChange={(event) => onDateFromChange(event.target.value)} aria-label="Начало периода" required />
+            <DatePicker label="Начало" value={dateFrom} onChange={onDateFromChange} />
             <span className="period-sep">—</span>
-            <input type="date" min="2000-01-01" max="2098-12-31" value={dateTo}
-              onChange={(event) => onDateToChange(event.target.value)} aria-label="Конец периода" required />
+            <DatePicker label="Конец" value={dateTo} onChange={onDateToChange} />
           </div>
-        </label>
+        </div>
       ) : (
-        <label>
-          Дата начала
-          <input type="date" min="2000-01-01" max="2098-12-31" value={date}
-            onChange={(event) => onDateChange(event.target.value)} required />
-        </label>
+        <DatePicker label="Дата начала" value={date} onChange={onDateChange} />
       )}
-
-      {horizon === "day" && <label>Время среза, МСК
-        <input type="time" value={startTime} onChange={(event) => onStartTimeChange(event.target.value)} />
-      </label>}
 
       <button
         type="button"
         onClick={onRefresh}
-        disabled={!date || (horizon === "month" && !monthPeriodValid) || invalidTime || busy}
+        disabled={!date || (horizon === "month" && !monthPeriodValid) || busy}
       >
         {busy ? "Загрузка…" : "Обновить"}
       </button>
 
-      <p className="period-note" role={invalidTime || (horizon === "month" && !monthPeriodValid) ? "alert" : undefined}>
-        {invalidTime
-          ? "Укажите корректное время среза."
-          : horizon === "month" && !monthPeriodValid
+      <p className="period-note" role={horizon === "month" && !monthPeriodValid ? "alert" : undefined}>
+        {horizon === "month" && !monthPeriodValid
             ? "Укажите период не длиннее одного месяца."
           : horizon === "day"
-            ? "Показатели рассчитаны для выбранного времени по всей сети."
+            ? "Карта и рейтинги показывают дневной срез выбранной даты."
             : horizon === "month"
               ? "Укажите период не длиннее одного месяца."
               : "Фильтры применяются автоматически. Для года период начинается с первого числа выбранного месяца."}

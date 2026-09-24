@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Legend,
   ResponsiveContainer,
-  ReferenceArea,
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
 
@@ -65,13 +64,6 @@ export function LoadChart({ forecast }: LoadChartProps) {
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
-          {forecast.value_unit === "demo_index" && (
-            <>
-              <ReferenceArea y1={0} y2={35} fill="#27825d" fillOpacity={0.08} stroke="none" />
-              <ReferenceArea y1={35} y2={55} fill="#d28a1e" fillOpacity={0.08} stroke="none" />
-              <ReferenceArea y1={55} y2={chartMax} fill="#d9444b" fillOpacity={0.08} stroke="none" />
-            </>
-          )}
           {forecast.horizon === "day" ? <XAxis dataKey="timestamp" type="number" scale="time"
             domain={["dataMin", "dataMax"]} ticks={hourlyTicks} minTickGap={24}
             tickFormatter={(value) => formatHourTick(Number(value))}
@@ -102,6 +94,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="lower_bound"
             stroke="#8498b2"
             strokeWidth={1}
@@ -111,6 +104,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="upper_bound"
             stroke="#8498b2"
             strokeWidth={1}
@@ -120,6 +114,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="predicted_load"
             stroke="#e74646"
             strokeWidth={2.5}

@@ -20,17 +20,6 @@ function currentMoscowDate(): string {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function currentMoscowTime(): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Moscow",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "00";
-  return `${part("hour")}:${part("minute")}`;
-}
-
 function nextMonth(date: string): string {
   const [year, month, day] = date.split("-").map(Number);
   const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -44,11 +33,11 @@ function validMonthPeriod(from: string, to: string): boolean {
 function snapshotTimestamp(
   date: string,
   horizon: Horizon,
-  startTime: string,
   dateFrom: string,
 ) : string {
   if (horizon === "day") {
-    return `${date}T${startTime}:00+03:00`;
+    // The time selector is hidden; the map and rankings use a stable daytime snapshot.
+    return `${date}T12:00:00+03:00`;
   }
   if (horizon === "month") {
     return `${dateFrom}T00:00:00+03:00`;
@@ -58,8 +47,8 @@ function snapshotTimestamp(
   return `${start.toISOString().slice(0, 13)}:00:00+03:00`;
 }
 
-function forecastRange(date: string, horizon: Horizon, startTime: string, dateFrom: string, dateTo: string) {
-  const from = snapshotTimestamp(date, horizon, startTime, dateFrom);
+function forecastRange(date: string, horizon: Horizon, dateFrom: string, dateTo: string) {
+  const from = horizon === "day" ? `${date}T00:00:00+03:00` : snapshotTimestamp(date, horizon, dateFrom);
   if (horizon === "day") {
     return { from, to: new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString(), resolution: "schedule" as const };
   }
@@ -81,10 +70,6 @@ function compareRoutes(a: Route, b: Route): number {
   if (firstNumber) return -1;
   if (secondNumber) return 1;
   return a.name.localeCompare(b.name, "ru", { numeric: true });
-}
-
-function validTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 function failureMessage(failure: unknown): string {
@@ -110,7 +95,6 @@ export default function App() {
   const [date, setDate] = useState(currentMoscowDate);
   const [dateFrom, setDateFrom] = useState(() => `${currentMoscowDate().slice(0, 7)}-01`);
   const [dateTo, setDateTo] = useState(() => nextMonth(`${currentMoscowDate().slice(0, 7)}-01`));
-  const [startTime, setStartTime] = useState(currentMoscowTime);
   const [retry, setRetry] = useState(0);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
   const [routeForecast, setRouteForecast] = useState<ForecastResponse | null>(null);
@@ -187,15 +171,14 @@ export default function App() {
   }, [routeId]);
 
   useEffect(() => {
-    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) || (horizon === "day" &&
-      !validTime(startTime))) {
+    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
       setMapForecast(null);
       setBusy(false);
       setError("");
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon, startTime, dateFrom);
+    const timestamp = snapshotTimestamp(date, horizon, dateFrom);
     setBusy(true);
     setError("");
     setMapForecast(null);
@@ -205,19 +188,18 @@ export default function App() {
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
 
     return () => controller.abort();
-  }, [routeId, horizon, date, dateFrom, dateTo, startTime, retry]);
+  }, [routeId, horizon, date, dateFrom, dateTo, retry]);
 
   useEffect(() => {
     if (page !== "details") return;
-    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) ||
-      (horizon === "day" && !validTime(startTime))) {
+    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
       setRouteForecast(null);
       setForecastError("");
       setForecastBusy(false);
       return;
     }
     const controller = new AbortController();
-    const range = forecastRange(date, horizon, startTime, dateFrom, dateTo);
+    const range = forecastRange(date, horizon, dateFrom, dateTo);
     const direction = focusedPoint?.direction_id ?? segment?.directionId ?? fromStop?.direction_id ?? directionId;
     const directionStartStop = stops.filter((stop) => stop.direction_id === direction)
       .sort((a, b) => a.sequence - b.sequence)[0];
@@ -231,21 +213,20 @@ export default function App() {
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [page, routeId, horizon, date, dateFrom, dateTo, startTime, directionId,
+  }, [page, routeId, horizon, date, dateFrom, dateTo, directionId,
     focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId,
     fromStop?.direction_id, forecastStopId, stops, retry]);
 
   useEffect(() => {
     if (page !== "analytics") return;
-    if (!date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo)) || (horizon === "day" &&
-      !validTime(startTime))) {
+    if (!date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
       setNetworkForecast(null);
       setNetworkError("");
       setNetworkBusy(false);
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon, startTime, dateFrom);
+    const timestamp = snapshotTimestamp(date, horizon, dateFrom);
     setNetworkBusy(true);
     setNetworkError("");
     setNetworkForecast(null);
@@ -254,7 +235,7 @@ export default function App() {
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [page, horizon, date, dateFrom, dateTo, startTime, retry]);
+  }, [page, horizon, date, dateFrom, dateTo, retry]);
 
   return (
     <>
@@ -279,7 +260,6 @@ export default function App() {
           dateFrom={dateFrom}
           dateTo={dateTo}
           monthPeriodValid={validMonthPeriod(dateFrom, dateTo)}
-          startTime={startTime}
           busy={page === "analytics" ? networkBusy : busy}
           loadingCatalog={loadingCatalog}
           loadingStops={loadingStops}
@@ -303,7 +283,6 @@ export default function App() {
           onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
           onDateFromChange={(value) => { setFocusedPoint(null); setDateFrom(value); }}
           onDateToChange={(value) => { setFocusedPoint(null); setDateTo(value); }}
-          onStartTimeChange={(value) => { setFocusedPoint(null); setStartTime(value); }}
           onRefresh={() => setRetry((value) => value + 1)}
         />
 
@@ -338,6 +317,7 @@ export default function App() {
         )}
 
         {page === "analytics" && <RankingsPanel
+          routes={routes}
           networkData={networkForecast}
           networkBusy={networkBusy}
           networkError={networkError}

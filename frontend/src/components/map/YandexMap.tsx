@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
 
-type LngLat = [number, number];
-type MapChild = object;
+export type LngLat = [number, number];
+export type MapChild = object;
 
-interface YMapInstance {
+export interface YMapInstance {
   addChild(child: MapChild): void;
   removeChild(child: MapChild): void;
   update(props: { location: { bounds: [LngLat, LngLat] } | { center: LngLat; zoom: number } }): void;
   destroy(): void;
 }
 
-interface YMaps3 {
+export interface YMaps3 {
   ready: Promise<void>;
   YMap: new (element: HTMLElement, props: object) => YMapInstance;
   YMapDefaultSchemeLayer: new (props: object) => MapChild;
@@ -26,7 +26,7 @@ declare global {
 
 let loading: Promise<YMaps3> | null = null;
 
-function loadYandex(apiKey: string): Promise<YMaps3> {
+export function loadYandex(apiKey: string): Promise<YMaps3> {
   if (loading) return loading;
   loading = new Promise<YMaps3>((resolve, reject) => {
     const script = document.createElement("script");

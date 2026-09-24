@@ -6,14 +6,6 @@ import { YandexMap } from "./YandexMap";
 import { clipRouteLines, type RouteSegment } from "../../routeSegment";
 import { loadColor, loadColors } from "../../loadLevel";
 
-const selectedTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
-  timeZone: "Europe/Moscow",
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
 interface MapViewProps {
   route?: Route;
   snapshot: MapForecastResponse | null;
@@ -76,12 +68,8 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
           <h2><TramIcon weight="bold" aria-hidden="true" />Карта маршрута{route ? ` · ${route.name}` : ""}</h2>
           <p>{segment ? `Участок: ${segment.from.name} → ${segment.to.name}. ` : ""}Выберите остановку на карте или в списке справа, чтобы выделить её.</p>
         </div>
-        {snapshot && <div className="map-clock">
-          <span className="map-time">
-            Выбранное время: {selectedTimeFormatter.format(new Date(snapshot.timestamp))} МСК
-          </span>
-        </div>}
       </div>
+      <div className="map-stage">
       {yandexKey && !yandexError ? <YandexMap
         apiKey={yandexKey}
         geometry={displayGeometry}
@@ -97,10 +85,12 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
       /> : <div className="map-container map-unavailable" role="alert">
         {yandexError || "Для карты не задан VITE_YANDEX_MAPS_API_KEY."} Подложка OpenStreetMap отключена.
       </div>}
+      {yandexKey && !yandexError && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
+      </div>
       {geometryError && <p className="map-empty" role="alert">Не удалось получить линии маршрута: {geometryError}</p>}
       {segment && geometry && displayGeometry?.lines.length === 0 &&
         <p className="map-empty" role="alert">Для выбранного участка не удалось выделить путь из геометрии OSM.</p>}
-      {noDemoService && <p className="map-empty" role="status">В выбранный момент демонстрационный прогноз на карте равен нулю.</p>}
+      {noDemoService && <p className="map-empty" role="status">Для выбранной даты демонстрационный прогноз на карте равен нулю.</p>}
       {!snapshot?.points.length && <p className="map-empty" role="status">
         {busy ? "Загружаем остановки и прогноз…" : "Для выбранных фильтров нет данных карты."}
       </p>}
@@ -109,7 +99,6 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
         <span><i style={{ background: loadColors.medium }} /> Средняя{snapshot?.value_unit === "demo_index" ? " (35–54)" : ""}</span>
         <span><i style={{ background: loadColors.high }} /> Высокая{snapshot?.value_unit === "demo_index" ? " (≥ 55)" : ""}</span>
       </div>
-      <p className="map-note">Цвет отражает {snapshot?.value_unit === "demo_index" ? "условный индекс, не число пассажиров" : "относительный уровень прогноза"}. Геоданные © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors (ODbL)</a>.</p>
     </section>
   );
 }
