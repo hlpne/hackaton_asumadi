@@ -14,6 +14,7 @@ interface RouteDetailsDashboardProps {
   snapshot: MapForecastResponse | null;
   segment: RouteSegment | null;
   directionId: 0 | 1;
+  startStopId: string;
   focusedPoint: MapForecastPoint | null;
   selectedStopId: string;
   busy: boolean;
@@ -27,9 +28,9 @@ interface RouteDetailsDashboardProps {
 }
 
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
-const time = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric" });
 
-export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, focusedPoint, selectedStopId, busy,
+export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, startStopId, focusedPoint, selectedStopId, busy,
   forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
@@ -38,7 +39,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
     .sort((a, b) => b.predicted_load - a.predicted_load || a.sequence - b.sequence);
   const peakStop = ranked[0];
   const average = points.length ? points.reduce((sum, point) => sum + point.predicted_load, 0) / points.length : null;
-  const visibleStopCount = stops.filter((stop) => stop.direction_id === direction).length;
+  const visibleStopCount = segment?.stops.length ?? stops.filter((stop) => stop.direction_id === direction).length;
   const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
 
   return <div className="detail-dashboard">
@@ -46,16 +47,16 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средний индекс</span><strong>{average === null ? "—" : number.format(average)}</strong>
         <small>{snapshot?.is_mock ? "Демонстрационный показатель" : "По остановкам направления"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Максимальный индекс</span><strong>{peakStop ? number.format(peakStop.predicted_load) : "—"}</strong>
-        <small>{snapshot && peakStop ? `${time.format(new Date(snapshot.timestamp))} МСК · направление ${direction + 1}` : "Нет данных для среза"}</small></div></article>
+        <small>{snapshot && peakStop ? `Направление ${direction + 1}` : "Нет данных для среза"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковая остановка</span><strong className="detail-metric-name">{peakStop?.stop_name ?? "—"}</strong>
         <small>{peakStop ? `Индекс ${number.format(peakStop.predicted_load)}` : "Нет данных для среза"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановок</span><strong>{visibleStopCount || "—"}</strong>
-        <small>Направление {direction + 1}</small></div></article>
+        <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
 
     <div className="detail-main-grid">
       <MapView route={route} snapshot={snapshot} stops={stops} segment={segment} directionId={direction}
-        selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
+        startStopId={startStopId} selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
         onStopSelect={(stopId) => {
           const point = points.find((item) => item.stop_id === stopId);
           if (point) onSelectStop(point);
@@ -68,7 +69,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
         <div className="route-summary-stats">
           <div><strong>{stops.length || "—"}</strong><span>остановок</span></div>
           <div><strong>{stops.length ? new Set(stops.map((stop) => stop.direction_id)).size : "—"}</strong><span>направления</span></div>
-          <div><strong>{snapshot ? `${time.format(new Date(snapshot.timestamp))}` : "—"}</strong><span>срез, МСК</span></div>
+          <div><strong>{snapshot ? date.format(new Date(snapshot.timestamp)) : "—"}</strong><span>дата прогноза</span></div>
         </div>
         <div className="route-summary-list-heading">
           <h3>Остановки с высоким индексом</h3>
@@ -83,7 +84,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
               <strong>{number.format(point.predicted_load)}</strong>
             </button>
           </li>)}
-        </ol> : <p className="route-summary-empty">{busy ? "Загружаем остановки…" : "Нет прогноза для выбранного времени."}</p>}
+        </ol> : <p className="route-summary-empty">{busy ? "Загружаем остановки…" : "Нет прогноза для выбранной даты."}</p>}
         {peakStop && snapshot && <p className="route-summary-note">{loadLabels[loadLevel(peakStop.predicted_load, snapshot)]} нагрузка по текущему срезу. Нажмите остановку, чтобы найти её на карте.</p>}
       </aside>
     </div>
@@ -94,7 +95,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
           <p className="eyebrow">ВЫБРАННЫЙ МАРШРУТ</p>
           <h2 id="detail-forecast-title">Прогноз загрузки</h2>
           <p>{forecastLabel ? `Остановка «${forecastLabel}»` : `Направление ${direction + 1}`}
-            {" · "}{horizon === "day" ? "ближайшие 24 часа" : horizon === "month" ? "выбранный период" : "12 месяцев"}</p>
+            {" · "}{horizon === "day" ? "выбранный день" : horizon === "month" ? "выбранный период" : "12 месяцев"}</p>
         </div>
       </div>
       {forecastBusy && <p className="detail-forecast-status" role="status">Загружаем прогноз…</p>}

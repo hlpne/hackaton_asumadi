@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Legend,
   ResponsiveContainer,
-  ReferenceArea,
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
 
@@ -32,13 +31,29 @@ function formatTick(ts: string, horizon: Horizon): string {
   return d.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow", month: "short", year: "2-digit" });
 }
 
+function formatHourTick(value: number): string {
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+  return hour === "00" ? "00:00" : `${Number(hour)}:00`;
+}
+
 export function LoadChart({ forecast }: LoadChartProps) {
   const data = forecast.points.map((p) => ({
+    timestamp: new Date(p.timestamp).getTime(),
     label: formatTick(p.timestamp, forecast.horizon),
     predicted_load: p.predicted_load,
     lower_bound: p.lower_bound,
     upper_bound: p.upper_bound,
   }));
+  const hourlyTicks = forecast.horizon === "day" && data.length
+    ? Array.from(
+      { length: Math.max(0, Math.floor((data.at(-1)!.timestamp - Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000) / 3_600_000) + 1) },
+      (_, index) => Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000 + index * 3_600_000,
+    )
+    : [];
   const chartMax = Math.ceil(Math.max(70, ...forecast.points.map((point) => point.upper_bound ?? point.predicted_load)) / 10) * 10;
 
   return (
@@ -49,15 +64,12 @@ export function LoadChart({ forecast }: LoadChartProps) {
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
-          {forecast.value_unit === "demo_index" && (
-            <>
-              <ReferenceArea y1={0} y2={35} fill="#27825d" fillOpacity={0.08} stroke="none" />
-              <ReferenceArea y1={35} y2={55} fill="#d28a1e" fillOpacity={0.08} stroke="none" />
-              <ReferenceArea y1={55} y2={chartMax} fill="#d9444b" fillOpacity={0.08} stroke="none" />
-            </>
-          )}
-          <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8}
-            interval={forecast.horizon === "year" ? 1 : forecast.horizon === "month" ? 3 : 2} />
+          {forecast.horizon === "day" ? <XAxis dataKey="timestamp" type="number" scale="time"
+            domain={["dataMin", "dataMax"]} ticks={hourlyTicks} minTickGap={24}
+            tickFormatter={(value) => formatHourTick(Number(value))}
+            stroke="#536177" fontSize={12} tickMargin={8} />
+            : <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8}
+              interval={forecast.horizon === "year" ? 1 : 3} />}
           <YAxis stroke="#536177" fontSize={12} tickMargin={4} domain={[0, chartMax]} />
           <Tooltip
             contentStyle={{
@@ -67,6 +79,9 @@ export function LoadChart({ forecast }: LoadChartProps) {
               fontSize: 13,
             }}
             labelStyle={{ color: "#17263c", fontWeight: 600 }}
+            labelFormatter={(value) => forecast.horizon === "day"
+              ? formatTick(new Date(Number(value)).toISOString(), "day")
+              : String(value)}
             formatter={(value, name) => {
               const label = LABELS[String(name)] ?? String(name);
               const num =
@@ -79,6 +94,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="lower_bound"
             stroke="#8498b2"
             strokeWidth={1}
@@ -88,6 +104,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="upper_bound"
             stroke="#8498b2"
             strokeWidth={1}
@@ -97,6 +114,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
           />
           <Line
             type="monotone"
+            isAnimationActive={false}
             dataKey="predicted_load"
             stroke="#e74646"
             strokeWidth={2.5}

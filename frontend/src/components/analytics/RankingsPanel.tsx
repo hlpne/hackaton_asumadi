@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { ChartBarIcon, MapPinIcon, TramIcon, TrophyIcon } from "@phosphor-icons/react";
-import type { MapForecastPoint, MapForecastResponse } from "../../types";
+import type { MapForecastPoint, MapForecastResponse, Route } from "../../types";
 import { snapshotPeriod } from "../../constants";
 import { rankNetwork } from "../../networkRanking";
+import { NetworkMap } from "../map/NetworkMap";
 
 type RankingView = "routes" | "stops";
 
 interface RankingsPanelProps {
+  routes: Route[];
   networkData: MapForecastResponse | null;
   networkBusy: boolean;
   networkError: string;
@@ -16,11 +18,11 @@ interface RankingsPanelProps {
 }
 
 const timestampFormatter = new Intl.DateTimeFormat("ru-RU", {
-  timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  timeZone: "Europe/Moscow", day: "2-digit", month: "long", year: "numeric",
 });
 const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 
-export function RankingsPanel({ networkData, networkBusy, networkError, onSelectRoute, onSelectStop, onRetry }: RankingsPanelProps) {
+export function RankingsPanel({ routes: catalogRoutes, networkData, networkBusy, networkError, onSelectRoute, onSelectStop, onRetry }: RankingsPanelProps) {
   const [view, setView] = useState<RankingView>("routes");
   const network = useMemo(() => networkData ? rankNetwork(networkData) : null, [networkData]);
   const routes = network?.routes ?? [];
@@ -40,7 +42,7 @@ export function RankingsPanel({ networkData, networkBusy, networkError, onSelect
     {!networkBusy && !networkError && networkData && <>
       <div className="network-heading">
         <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ</p><h2>Общая картина</h2></div>
-        <time dateTime={networkData.timestamp}>{timestampFormatter.format(new Date(networkData.timestamp))} МСК</time>
+        <time dateTime={networkData.timestamp}>{timestampFormatter.format(new Date(networkData.timestamp))}</time>
       </div>
       <div className="network-metrics">
         <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
@@ -48,6 +50,8 @@ export function RankingsPanel({ networkData, networkBusy, networkError, onSelect
         <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний индекс маршрута</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
         <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Первый в рейтинге</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name : "Нет нагрузки в срезе"}</strong></article>
       </div>
+
+      <NetworkMap routes={catalogRoutes} snapshot={networkData} />
 
       <section className="network-comparison" aria-labelledby="network-comparison-title">
         <div className="network-section-heading"><div><h2 id="network-comparison-title">Сравнение маршрутов</h2>
@@ -61,7 +65,7 @@ export function RankingsPanel({ networkData, networkBusy, networkError, onSelect
               <strong>{valueFormatter.format(route.averageLoad)}</strong>
             </button>
           </li>)}
-        </ol> : <p className="top-panel-status">В выбранное время индекс всех маршрутов равен нулю. Выберите другой момент для сравнения.</p>}
+        </ol> : <p className="top-panel-status">Для выбранной даты индекс всех маршрутов равен нулю. Выберите другую дату для сравнения.</p>}
       </section>
 
       <section className="top-panel rankings-panel" aria-labelledby="rankings-title">
@@ -76,7 +80,7 @@ export function RankingsPanel({ networkData, networkBusy, networkError, onSelect
           <div className="ranking-intro"><h3>{title}</h3><p>{view === "routes"
             ? "Маршруты по среднему индексу остановок. Прокрутите список, чтобы увидеть всю сеть."
             : `Остановки с самым высоким индексом среди всех маршрутов ${period}. Нажмите остановку, чтобы найти её на карте.`}</p></div>
-          {!hasPositiveLoad && <p className="top-panel-status">Для выбранного времени нет положительного прогноза.</p>}
+          {!hasPositiveLoad && <p className="top-panel-status">Для выбранной даты нет положительного прогноза.</p>}
           {hasPositiveLoad && (view === "routes" ? routes.length > 0 : stops.length > 0) && <div className="ranking-scroll" role="region" aria-label={title} tabIndex={0}>
             <ol className="top-list">{view === "routes" ? routes.map((route) => <li key={route.id}>
               <button type="button" className="top-item" onClick={() => onSelectRoute(route.id)}

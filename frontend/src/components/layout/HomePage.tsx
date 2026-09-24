@@ -34,7 +34,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
           <h2 id="project-title">От данных к понятной картине на карте</h2>
           <p>
             Проект создаётся для задачи прогноза пассажиропотока трамвайных маршрутов.
-            Он связывает прогноз с конкретным временем, маршрутом и остановкой, чтобы
+            Он связывает прогноз с выбранной датой, маршрутом и остановкой, чтобы
             результат было удобно исследовать и использовать при планировании.
           </p>
         </div>
@@ -46,8 +46,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
           </article>
           <article className="home-value">
             <span className="home-value-number">02</span>
-            <h3>Выбрать момент</h3>
-            <p>Выбор даты, времени и горизонта обновляет срез прогноза для маршрута.</p>
+            <h3>Выбрать период</h3>
+            <p>Выбор даты и горизонта обновляет прогноз для маршрута.</p>
           </article>
           <article className="home-value">
             <span className="home-value-number">03</span>
@@ -68,7 +68,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <MapPinIcon weight="fill" aria-hidden="true" />
             <div>
               <h3>Один маршрут</h3>
-              <p>Остановки на карте, направление и прогноз для выбранного времени.</p>
+              <p>Остановки на карте, направление и прогноз для выбранной даты.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("details")}>Открыть детализацию <span aria-hidden="true">→</span></button>
             </div>
           </article>
@@ -76,7 +76,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <ChartBarIcon weight="bold" aria-hidden="true" />
             <div>
               <h3>Вся сеть</h3>
-              <p>Сравнение маршрутов, рейтинги остановок и общие показатели.</p>
+              <p>Карта всей сети, сравнение маршрутов, рейтинги остановок и общие показатели.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("analytics")}>Открыть аналитику <span aria-hidden="true">→</span></button>
             </div>
           </article>
