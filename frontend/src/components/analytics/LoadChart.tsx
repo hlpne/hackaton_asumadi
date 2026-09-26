@@ -23,12 +23,24 @@ const LABELS: Record<string, string> = {
 function formatTick(ts: string, horizon: Horizon): string {
   const d = new Date(ts);
   if (horizon === "day") {
-    return d.toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("ru-RU", {
+      timeZone: "Europe/Moscow",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
   if (horizon === "month") {
-    return d.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit" });
+    return d.toLocaleDateString("ru-RU", {
+      timeZone: "Europe/Moscow",
+      day: "2-digit",
+      month: "2-digit",
+    });
   }
-  return d.toLocaleDateString("ru-RU", { timeZone: "Europe/Moscow", month: "short", year: "2-digit" });
+  return d.toLocaleDateString("ru-RU", {
+    timeZone: "Europe/Moscow",
+    month: "short",
+    year: "2-digit",
+  });
 }
 
 function formatHourTick(value: number): string {
@@ -48,40 +60,96 @@ export function LoadChart({ forecast }: LoadChartProps) {
     lower_bound: p.lower_bound,
     upper_bound: p.upper_bound,
   }));
-  const hourlyTicks = forecast.horizon === "day" && data.length
-    ? Array.from(
-      { length: Math.max(0, Math.floor((data.at(-1)!.timestamp - Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000) / 3_600_000) + 1) },
-      (_, index) => Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000 + index * 3_600_000,
-    )
-    : [];
-  const chartMax = Math.ceil(Math.max(70, ...forecast.points.map((point) => point.upper_bound ?? point.predicted_load)) / 10) * 10;
+
+  const hourlyTicks =
+    forecast.horizon === "day" && data.length
+      ? Array.from(
+          {
+            length: Math.max(
+              0,
+              Math.floor(
+                (data.at(-1)!.timestamp -
+                  Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000) /
+                  3_600_000
+              ) + 1
+            ),
+          },
+          (_, index) =>
+            Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000 +
+            index * 3_600_000
+        )
+      : [];
+
+  const chartMax =
+    Math.ceil(
+      Math.max(
+        70,
+        ...forecast.points.map(
+          (point) => point.upper_bound ?? point.predicted_load
+        )
+      ) / 10
+    ) * 10;
 
   return (
     <div className="chart-wrapper">
       {forecast.value_unit === "demo_index" && (
-        <p className="chart-subtitle">Демонстрационный индекс: низкая нагрузка до 35, средняя 35–54, высокая от 55.</p>
+        <p className="chart-subtitle">
+          Демонстрационный индекс: низкая нагрузка до 35, средняя 35–54, высокая
+          от 55.
+        </p>
       )}
       <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
-          {forecast.horizon === "day" ? <XAxis dataKey="timestamp" type="number" scale="time"
-            domain={["dataMin", "dataMax"]} ticks={hourlyTicks} minTickGap={24}
-            tickFormatter={(value) => formatHourTick(Number(value))}
-            stroke="#536177" fontSize={12} tickMargin={8} />
-            : <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8}
-              interval={forecast.horizon === "year" ? 1 : 3} />}
-          <YAxis stroke="#536177" fontSize={12} tickMargin={4} domain={[0, chartMax]} />
+        <LineChart
+          data={data}
+          margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+
+          {forecast.horizon === "day" ? (
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              ticks={hourlyTicks}
+              minTickGap={24}
+              tickFormatter={(value) => formatHourTick(Number(value))}
+              stroke="#8b98ab"
+              fontSize={12}
+              tickMargin={8}
+            />
+          ) : (
+            <XAxis
+              dataKey="label"
+              stroke="#8b98ab"
+              fontSize={12}
+              tickMargin={8}
+              interval={forecast.horizon === "year" ? 1 : 3}
+            />
+          )}
+
+          <YAxis
+            stroke="#8b98ab"
+            fontSize={12}
+            tickMargin={4}
+            domain={[0, chartMax]}
+          />
+
           <Tooltip
             contentStyle={{
-              background: "#fff",
-              border: "1px solid #d7dfeb",
-              borderRadius: 6,
+              background: "#0f1622",
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 8,
               fontSize: 13,
+              color: "#e8eef7",
             }}
-            labelStyle={{ color: "#17263c", fontWeight: 600 }}
-            labelFormatter={(value) => forecast.horizon === "day"
-              ? formatTick(new Date(Number(value)).toISOString(), "day")
-              : String(value)}
+            labelStyle={{ color: "#e8eef7", fontWeight: 600 }}
+            itemStyle={{ color: "#8b98ab" }}
+            labelFormatter={(value) =>
+              forecast.horizon === "day"
+                ? formatTick(new Date(Number(value)).toISOString(), "day")
+                : String(value)
+            }
             formatter={(value, name) => {
               const label = LABELS[String(name)] ?? String(name);
               const num =
@@ -89,14 +157,17 @@ export function LoadChart({ forecast }: LoadChartProps) {
               return [num, label];
             }}
           />
+
           <Legend
             formatter={(value) => LABELS[String(value)] ?? String(value)}
+            wrapperStyle={{ color: "#8b98ab", fontSize: 12 }}
           />
+
           <Line
             type="monotone"
             isAnimationActive={false}
             dataKey="lower_bound"
-            stroke="#8498b2"
+            stroke="#5a6b82"
             strokeWidth={1}
             strokeDasharray="4 4"
             dot={false}
@@ -106,7 +177,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
             type="monotone"
             isAnimationActive={false}
             dataKey="upper_bound"
-            stroke="#8498b2"
+            stroke="#5a6b82"
             strokeWidth={1}
             strokeDasharray="4 4"
             dot={false}
@@ -116,7 +187,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
             type="monotone"
             isAnimationActive={false}
             dataKey="predicted_load"
-            stroke="#e74646"
+            stroke="#e8eef7"
             strokeWidth={2.5}
             dot={false}
             name="predicted_load"

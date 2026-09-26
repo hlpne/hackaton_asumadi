@@ -75,7 +75,7 @@ export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
         location: { center: [37.62, 55.75], zoom: 10 },
         showScaleInCopyrights: true,
       });
-      map.addChild(new api.YMapDefaultSchemeLayer({}));
+      map.addChild(new api.YMapDefaultSchemeLayer({ theme: "dark" }));
       map.addChild(new api.YMapDefaultFeaturesLayer({}));
       mapRef.current = map;
       apiRef.current = api;
