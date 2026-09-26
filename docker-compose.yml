@@ -32,6 +32,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-transport_local_only}
       DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-3}
       DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-3000}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-}
+      AUTH_USERS_FILE: ${AUTH_USERS_FILE:-mock_data/dispatchers.json}
+      AUTH_TOKEN_TTL_SECONDS: ${AUTH_TOKEN_TTL_SECONDS:-43200}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

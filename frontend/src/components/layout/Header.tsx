@@ -1,4 +1,5 @@
-import { TramIcon } from "@phosphor-icons/react";
+import { SignOutIcon, TramIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { useAuth } from "../auth/AuthGate";
 
 export type Page = "home" | "details" | "analytics";
 
@@ -15,6 +16,7 @@ const links: Array<{ page: Page; label: string }> = [
 ];
 
 export function Header({ page, onNavigate, stage = "Прототип команды · v0.1" }: HeaderProps) {
+  const auth = useAuth();
   return (
     <header className="topbar">
       <a href="#home" className="wordmark" aria-label="Трамвай / Прогноз — на главную"
@@ -32,7 +34,19 @@ export function Header({ page, onNavigate, stage = "Прототип коман�
           </a>
         ))}
       </nav>
-      <span className="stage">{stage}</span>
+      <div className="topbar-end">
+        <span className="stage">{stage}</span>
+        {auth && <div className="user-menu">
+          <span className="user-name" title={`Логин: ${auth.user.login}`}>
+            <UserCircleIcon size={20} aria-hidden="true" />
+            <span>{auth.user.full_name}</span>
+          </span>
+          <button type="button" className="logout-button" onClick={auth.logout}>
+            <SignOutIcon size={18} weight="bold" aria-hidden="true" />
+            Выйти
+          </button>
+        </div>}
+      </div>
     </header>
   );
 }

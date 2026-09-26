@@ -1,5 +1,7 @@
+from datetime import UTC, datetime
 import json
 import logging
+import secrets
 from typing import Annotated
 
 import psycopg
@@ -7,8 +9,10 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.exceptions import HTTPException
 
+from app.auth import Authenticator, AuthError, Dispatcher, TooManyAttemptsError, load_dispatchers
 from app.catalog import Catalog, MemoryCatalog, PostgresCatalog
 from app.config import ROOT, Settings
 from app.forecast_persistence import (
@@ -28,14 +32,18 @@ from app.forecast_service import (
 )
 from app.predictors.base import Predictor, load_predictor
 from app.schemas import (
+    DispatcherProfile,
     ErrorResponse,
     ForecastRequest,
     ForecastResponse,
     LivenessResponse,
+    LoginRequest,
+    LoginResponse,
     MapForecastResponse,
     ReadinessResponse,
     Route,
     RouteStop,
+    SessionResponse,
     SnapshotRequest,
     TopOverloadRequest,
     TopOverloadResponse,
@@ -44,8 +52,18 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def error(status: int, code: str, message: str, details: list | None = None) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"error": {"code": code, "message": message, "details": details or []}})
+HTTP_ERROR_CODES = {401: "UNAUTHORIZED", 404: "NOT_FOUND", 429: "TOO_MANY_ATTEMPTS"}
+bearer_scheme = HTTPBearer(auto_error=False, description="Token from POST /auth/login")
+
+
+def error(
+    status: int, code: str, message: str, details: list | None = None, headers: dict | None = None
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content={"error": {"code": code, "message": message, "details": details or []}},
+        headers=headers,
+    )
 
 
 def get_predictor(request: Request) -> Predictor:
@@ -67,7 +85,7 @@ def create_app(
         title=config.app_name, version=config.app_version,
         description="Contract v1. Demo predictions do not represent real passenger counts.",
         docs_url=None, redoc_url=None, servers=[{"url": "."}],
-        responses={422: {"model": ErrorResponse}, 404: {"model": ErrorResponse},
+        responses={422: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 401: {"model": ErrorResponse},
                    409: {"model": ErrorResponse}, 503: {"model": ErrorResponse},
                    502: {"model": ErrorResponse}},
     )
@@ -81,6 +99,15 @@ def create_app(
         if config.catalog_backend == "postgres"
         else DisabledForecastRepository()
     )
+    authenticator = Authenticator(
+        load_dispatchers(config.auth_users_file),
+        # Without a configured key tokens are valid only until the process restarts.
+        config.auth_secret_key or secrets.token_urlsafe(32),
+        config.auth_token_ttl_seconds,
+    )
+    application.state.authenticator = authenticator
+    if config.auth_enabled and not authenticator.dispatchers:
+        logger.warning("Auth is enabled but %s has no dispatcher accounts", config.auth_users_file)
     geometry_data = json.loads((ROOT / "mock_data" / "osm_trams.json").read_text(encoding="utf-8"))
 
     @application.exception_handler(RequestValidationError)
@@ -90,7 +117,8 @@ def create_app(
 
     @application.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
-        return error(exc.status_code, "NOT_FOUND" if exc.status_code == 404 else "HTTP_ERROR", str(exc.detail))
+        code = HTTP_ERROR_CODES.get(exc.status_code, "HTTP_ERROR")
+        return error(exc.status_code, code, str(exc.detail), headers=getattr(exc, "headers", None))
 
     @application.exception_handler(psycopg.Error)
     async def database_error(_: Request, exc: psycopg.Error) -> JSONResponse:
@@ -117,6 +145,30 @@ def create_app(
     async def unexpected_error(_: Request, exc: Exception) -> JSONResponse:
         logger.exception("Unhandled application error: %s", type(exc).__name__)
         return error(500, "INTERNAL_ERROR", "Unexpected server error")
+
+    def current_dispatcher(
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    ) -> tuple[Dispatcher, int]:
+        if credentials is None or credentials.scheme.lower() != "bearer":
+            raise HTTPException(401, "Требуется авторизация", headers={"WWW-Authenticate": "Bearer"})
+        try:
+            return authenticator.verify(credentials.credentials)
+        except AuthError as exc:
+            raise HTTPException(401, str(exc), headers={"WWW-Authenticate": "Bearer"}) from exc
+
+    def require_dispatcher(
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    ) -> None:
+        if config.auth_enabled:
+            current_dispatcher(credentials)
+
+    protected = [Depends(require_dispatcher)]
+
+    def session_payload(dispatcher: Dispatcher, expires_at: int) -> dict:
+        return {
+            "user": DispatcherProfile(login=dispatcher.login, full_name=dispatcher.full_name),
+            "expires_at": datetime.fromtimestamp(expires_at, UTC),
+        }
 
     def ensure_route(route_id: str) -> None:
         if not any(item.id == route_id for item in store.routes()):
@@ -170,16 +222,32 @@ def create_app(
     def health() -> dict:
         return readiness_payload()
 
-    @application.get("/routes", response_model=list[Route], tags=["catalog"])
+    @application.post("/auth/login", response_model=LoginResponse, tags=["auth"])
+    def auth_login(credentials: LoginRequest) -> dict:
+        """Exchange a dispatcher login and password for a bearer token."""
+        try:
+            dispatcher, token, expires_at = authenticator.login(credentials.login, credentials.password)
+        except TooManyAttemptsError as exc:
+            raise HTTPException(429, str(exc), headers={"Retry-After": str(exc.retry_after)}) from exc
+        except AuthError as exc:
+            raise HTTPException(401, str(exc)) from exc
+        logger.info("Dispatcher logged in: %s", dispatcher.login)
+        return {**session_payload(dispatcher, expires_at), "access_token": token}
+
+    @application.get("/auth/me", response_model=SessionResponse, tags=["auth"])
+    def auth_me(session: Annotated[tuple[Dispatcher, int], Depends(current_dispatcher)]) -> dict:
+        return session_payload(*session)
+
+    @application.get("/routes", response_model=list[Route], tags=["catalog"], dependencies=protected)
     def routes() -> list[Route]:
         return store.routes()
 
-    @application.get("/routes/{route_id}/stops", response_model=list[RouteStop], tags=["catalog"])
+    @application.get("/routes/{route_id}/stops", response_model=list[RouteStop], tags=["catalog"], dependencies=protected)
     def stops(route_id: str) -> list[RouteStop]:
         ensure_route(route_id)
         return store.stops(route_id)
 
-    @application.get("/routes/{route_id}/geometry", tags=["catalog"])
+    @application.get("/routes/{route_id}/geometry", tags=["catalog"], dependencies=protected)
     def route_geometry(route_id: str, direction_id: Annotated[int, Query(ge=0, le=1)] = 0) -> dict:
         """OSM track geometry, distinct from the synthetic load forecast."""
         ensure_route(route_id)
@@ -197,7 +265,7 @@ def create_app(
             "lines": direction["lines"],
         }
 
-    @application.get("/forecast", response_model=ForecastResponse, tags=["forecast"])
+    @application.get("/forecast", response_model=ForecastResponse, tags=["forecast"], dependencies=protected)
     def forecast(
         query: Annotated[ForecastRequest, Query()],
         provider: Annotated[Predictor, Depends(get_predictor)],
@@ -205,7 +273,7 @@ def create_app(
         validate_series(query)
         return predict(provider, query)
 
-    @application.post("/forecast", response_model=ForecastPersistenceResult, tags=["forecast"])
+    @application.post("/forecast", response_model=ForecastPersistenceResult, tags=["forecast"], dependencies=protected)
     def persist_forecast(
         query: ForecastRequest,
         provider: Annotated[Predictor, Depends(get_predictor)],
@@ -214,7 +282,7 @@ def create_app(
         validate_series(query, resolve_direction=True)
         return writer.save(predict(provider, query))
 
-    @application.get("/forecast/map", response_model=MapForecastResponse, tags=["forecast"])
+    @application.get("/forecast/map", response_model=MapForecastResponse, tags=["forecast"], dependencies=protected)
     def forecast_map(
         query: Annotated[SnapshotRequest, Query()],
         provider: Annotated[Predictor, Depends(get_predictor)],
@@ -224,7 +292,7 @@ def create_app(
         except LookupError as exc:
             raise HTTPException(404, str(exc)) from exc
 
-    @application.get("/forecast/top-overload", response_model=TopOverloadResponse, tags=["forecast"])
+    @application.get("/forecast/top-overload", response_model=TopOverloadResponse, tags=["forecast"], dependencies=protected)
     def forecast_top_overload(
         query: Annotated[TopOverloadRequest, Query()],
         provider: Annotated[Predictor, Depends(get_predictor)],

@@ -90,3 +90,14 @@ export interface TopOverloadResponse {
   ranking_basis: "predicted_load_desc";
   items: Array<MapForecastPoint & { rank: number }>;
 }
+
+export interface DispatcherProfile {
+  login: string;
+  full_name: string;
+}
+
+export interface AuthSession {
+  access_token: string;
+  expires_at: string;
+  user: DispatcherProfile;
+}
