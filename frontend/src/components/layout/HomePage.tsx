@@ -86,14 +86,16 @@ export function HomePage({ onNavigate }: HomePageProps) {
       <section className="home-model" aria-labelledby="model-title">
         <div>
           <p className="eyebrow">О МОДЕЛИ</p>
-          <h2 id="model-title">Подробности появятся здесь</h2>
+          <h2 id="model-title">Как формируется прогноз</h2>
           <p>
-            Пока интерфейс показывает демонстрационный прогноз. Backend уже позволяет
-            подключить модель без переделки карты и аналитики. После проверки модели
-            на официальных данных здесь появятся её признаки, метрики и ограничения.
+            Отдельная модельная карточка объясняет target, временную валидацию,
+            метрики, признаки и ограничения без подмены посадок заполняемостью салона.
           </p>
+          <button type="button" className="home-explore-link" onClick={() => onNavigate("model")}>
+            Открыть карточку модели <span aria-hidden="true">→</span>
+          </button>
         </div>
-        <span className="home-model-status">Раздел готовится</span>
+        <span className="home-model-status">Machine-readable metadata</span>
       </section>
     </div>
   );

@@ -4,15 +4,18 @@ import { getRouteGeometry } from "../../api";
 import type { MapForecastResponse, Route, RouteGeometry } from "../../types";
 import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 } from "./YandexMap";
 import { buildNetworkLines } from "./networkMapLines";
+import type { Theme } from "../../theme";
 
 const geometryCache = new Map<string, RouteGeometry>();
 
 interface NetworkMapProps {
   routes: Route[];
   snapshot: MapForecastResponse;
+  theme: Theme;
+  onSelectRoute: (routeId: string) => void;
 }
 
-export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
+export function NetworkMap({ routes, snapshot, theme, onSelectRoute }: NetworkMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
@@ -75,7 +78,7 @@ export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
         location: { center: [37.62, 55.75], zoom: 10 },
         showScaleInCopyrights: true,
       });
-      map.addChild(new api.YMapDefaultSchemeLayer({}));
+      map.addChild(new api.YMapDefaultSchemeLayer({ theme }));
       map.addChild(new api.YMapDefaultFeaturesLayer({}));
       mapRef.current = map;
       apiRef.current = api;
@@ -91,7 +94,7 @@ export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
       overlays.current = [];
       setReady(false);
     };
-  }, [apiKey]);
+  }, [apiKey, theme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -112,6 +115,7 @@ export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
         style: { stroke: [{ width: 4, color: group.color, opacity: .9 }] },
         onMouseEnter: (event: MouseEvent) => showHover(group.routeId, event),
         onMouseLeave: () => setHoveredRoute(null),
+        onClick: () => onSelectRoute(group.routeId),
       });
       map.addChild(feature);
       overlays.current.push(feature);
@@ -162,13 +166,16 @@ export function NetworkMap({ routes, snapshot }: NetworkMapProps) {
           {svgLines.map((line, index) => <path key={`${line.routeId}/${index}`} d={line.path}
             fill="none" stroke={line.color} strokeWidth="3.8" strokeOpacity=".9"
             strokeLinecap="round" strokeLinejoin="round"
+            role="button" tabIndex={0}
+            onClick={() => onSelectRoute(line.routeId)}
+            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelectRoute(line.routeId); }}
             onMouseMove={(event) => showHover(line.routeId, event.nativeEvent)}
             onMouseLeave={() => setHoveredRoute(null)}><title>Маршрут {routeNumbers.get(line.routeId) ?? line.routeId}</title></path>)}
         </svg>}
         {!loading && !svgLines.length && <p>Нет линий маршрутов для отображения.</p>}
       </div> : <div ref={container} className="map-container" aria-label="Карта Яндекса со всеми трамвайными маршрутами" />}
       {hoveredRoute && <div className="map-route-tooltip" style={{ left: hoveredRoute.x, top: hoveredRoute.y }} role="status">
-        Маршрут {routeNumbers.get(hoveredRoute.id) ?? hoveredRoute.id}
+        Маршрут {routeNumbers.get(hoveredRoute.id) ?? hoveredRoute.id} · открыть
       </div>}
       <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
     </div>

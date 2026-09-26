@@ -3,10 +3,19 @@ import type { MapForecastResponse } from "./types";
 export type LoadLevel = "low" | "medium" | "high";
 
 export const loadColors: Record<LoadLevel, string> = {
-  low: "#27825d",
-  medium: "#d28a1e",
-  high: "#d9444b",
+  low: "var(--status-normal)",
+  medium: "var(--status-attention)",
+  high: "var(--status-critical)",
 };
+
+function resolvedToken(token: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+}
+
+export function neutralMapColor(): string {
+  return resolvedToken("--status-neutral", "rgb(127, 140, 150)");
+}
 
 export const loadLabels: Record<LoadLevel, string> = {
   low: "Низкая",
@@ -28,5 +37,7 @@ export function loadLevel(value: number, snapshot: MapForecastResponse): LoadLev
 }
 
 export function loadColor(value: number, snapshot: MapForecastResponse): string {
-  return loadColors[loadLevel(value, snapshot)];
+  const level = loadLevel(value, snapshot);
+  return resolvedToken(`--status-${level === "low" ? "normal" : level === "medium" ? "attention" : "critical"}`,
+    level === "low" ? "rgb(94, 197, 87)" : level === "medium" ? "rgb(243, 148, 68)" : "rgb(255, 90, 95)");
 }

@@ -7,7 +7,9 @@ import { HomePage } from "./components/layout/HomePage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { RankingsPanel } from "./components/analytics/RankingsPanel";
 import { RouteDetailsDashboard } from "./components/analytics/RouteDetailsDashboard";
+import { ModelPage } from "./components/model/ModelPage";
 import { buildRouteSegment } from "./routeSegment";
+import { applyTheme, initialTheme } from "./theme";
 
 function currentMoscowDate(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -77,24 +79,39 @@ function failureMessage(failure: unknown): string {
 }
 
 function pageFromHash(): Page {
-  const hash = window.location.hash.slice(1);
-  return hash === "details" || hash === "analytics" ? hash : "home";
+  const hash = window.location.hash.slice(1).split("?")[0];
+  if (hash === "home" || hash === "analytics" || hash === "model") return hash;
+  return "details";
+}
+
+function queryValue(name: string): string {
+  return new URLSearchParams(window.location.search).get(name) ?? "";
+}
+
+function initialHorizon(): Horizon {
+  const value = queryValue("horizon");
+  return value === "month" || value === "year" ? value : "day";
+}
+
+function initialDirection(): 0 | 1 {
+  return queryValue("direction") === "1" ? 1 : 0;
 }
 
 export default function App() {
   const [page, setPage] = useState<Page>(pageFromHash);
+  const [theme, setTheme] = useState(initialTheme);
   const [scrollToMap, setScrollToMap] = useState(false);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [stops, setStops] = useState<RouteStop[]>([]);
-  const [routeId, setRouteId] = useState("");
-  const [directionId, setDirectionId] = useState<0 | 1>(0);
-  const [fromStopId, setFromStopId] = useState("");
-  const [toStopId, setToStopId] = useState("");
-  const [forecastStopId, setForecastStopId] = useState("");
-  const [horizon, setHorizon] = useState<Horizon>("day");
-  const [date, setDate] = useState(currentMoscowDate);
-  const [dateFrom, setDateFrom] = useState(() => `${currentMoscowDate().slice(0, 7)}-01`);
-  const [dateTo, setDateTo] = useState(() => nextMonth(`${currentMoscowDate().slice(0, 7)}-01`));
+  const [routeId, setRouteId] = useState(() => queryValue("route"));
+  const [directionId, setDirectionId] = useState<0 | 1>(initialDirection);
+  const [fromStopId, setFromStopId] = useState(() => queryValue("from"));
+  const [toStopId, setToStopId] = useState(() => queryValue("to"));
+  const [forecastStopId, setForecastStopId] = useState(() => queryValue("stop"));
+  const [horizon, setHorizon] = useState<Horizon>(initialHorizon);
+  const [date, setDate] = useState(() => queryValue("date") || currentMoscowDate());
+  const [dateFrom, setDateFrom] = useState(() => queryValue("dateFrom") || `${currentMoscowDate().slice(0, 7)}-01`);
+  const [dateTo, setDateTo] = useState(() => queryValue("dateTo") || nextMonth(`${currentMoscowDate().slice(0, 7)}-01`));
   const [retry, setRetry] = useState(0);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
   const [routeForecast, setRouteForecast] = useState<ForecastResponse | null>(null);
@@ -118,6 +135,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  useEffect(() => applyTheme(theme), [theme]);
+
   useEffect(() => {
     const handleHashChange = () => {
       setPage(pageFromHash());
@@ -127,7 +146,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = `${page === "home" ? "Главная" : page === "details" ? "Детализация" : "Аналитика"} · Трамвай / Прогноз`;
+    const label = page === "home" ? "Главная" : page === "details" ? "Мониторинг" : page === "analytics" ? "Сеть" : "О модели";
+    document.title = `${label} · Трамвай / Прогноз`;
+    document.body.dataset.page = page;
     if (page === "details" && scrollToMap) {
       mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       setScrollToMap(false);
@@ -135,12 +156,32 @@ export default function App() {
   }, [page, scrollToMap]);
 
   useEffect(() => {
+    if (!routeId || page === "home" || page === "model") return;
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    params.set("route", routeId);
+    params.set("direction", String(directionId));
+    params.set("horizon", horizon);
+    params.set("date", date);
+    if (horizon === "month") {
+      params.set("dateFrom", dateFrom);
+      params.set("dateTo", dateTo);
+    } else {
+      params.delete("dateFrom");
+      params.delete("dateTo");
+    }
+    const optional = { from: fromStopId, to: toStopId, stop: forecastStopId };
+    Object.entries(optional).forEach(([key, value]) => value ? params.set(key, value) : params.delete(key));
+    window.history.replaceState(null, "", `${url.pathname}?${params.toString()}#${page}`);
+  }, [page, routeId, directionId, horizon, date, dateFrom, dateTo, fromStopId, toStopId, forecastStopId]);
+
+  useEffect(() => {
     const controller = new AbortController();
     getRoutes(controller.signal)
       .then((items) => {
         const sorted = [...items].sort(compareRoutes);
         setRoutes(sorted);
-        setRouteId(sorted[0]?.id ?? "");
+        setRouteId((current) => sorted.some((route) => route.id === current) ? current : (sorted[0]?.id ?? ""));
         if (!items.length) setError("Справочник маршрутов пуст.");
       })
       .catch((failure: Error) => {
@@ -159,7 +200,12 @@ export default function App() {
     setLoadingStops(true);
     getStops(routeId, controller.signal)
       .then((items) => {
-        if (!controller.signal.aborted) setStops(items);
+        if (!controller.signal.aborted) {
+          setStops(items);
+          setFromStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+          setToStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+          setForecastStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+        }
       })
       .catch((failure: unknown) => {
         if (!controller.signal.aborted) setError(failureMessage(failure));
@@ -239,9 +285,10 @@ export default function App() {
 
   return (
     <>
-      <Header page={page} onNavigate={navigate} />
-      <main>
-        {page === "home" ? <HomePage onNavigate={navigate} /> : <>
+      <Header page={page} onNavigate={navigate} theme={theme}
+        onThemeToggle={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
+      <main className={`app-main app-main--${page}`}>
+        {page === "home" ? <HomePage onNavigate={navigate} /> : page === "model" ? <ModelPage /> : <div className={page === "details" ? "workspace-page" : "analytics-page"}>
         {page === "details" ? <h1 className="sr-only">Детализация маршрута</h1> : <div className="intro">
           <p className="eyebrow">ПАССАЖИРОПОТОК</p>
           <h1>Аналитика трамвайной сети</h1>
@@ -307,6 +354,7 @@ export default function App() {
               setForecastStopId(point.stop_id);
             }}
             onRetryForecast={() => setRetry((value) => value + 1)}
+            theme={theme}
           />
         </div>}
 
@@ -342,9 +390,10 @@ export default function App() {
             navigate("details");
           }}
           onRetry={() => setRetry((value) => value + 1)}
+          theme={theme}
         />}
 
-        </>}
+        </div>}
 
         <footer className="site-footer">
           <div><strong>Трамвай / Прогноз</strong><span>Командный проект для Хакатона Московского транспорта · 2026</span></div>

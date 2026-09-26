@@ -26,6 +26,7 @@ from app.forecast_service import (
     snapshot,
     top_overload,
 )
+from app.model_metadata import load_model_metadata
 from app.predictors.base import Predictor, load_predictor
 from app.schemas import (
     ErrorResponse,
@@ -33,6 +34,7 @@ from app.schemas import (
     ForecastResponse,
     LivenessResponse,
     MapForecastResponse,
+    ModelMetadataResponse,
     ReadinessResponse,
     Route,
     RouteStop,
@@ -82,6 +84,7 @@ def create_app(
         else DisabledForecastRepository()
     )
     geometry_data = json.loads((ROOT / "mock_data" / "osm_trams.json").read_text(encoding="utf-8"))
+    model_metadata = load_model_metadata()
 
     @application.exception_handler(RequestValidationError)
     async def bad_request(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -173,6 +176,11 @@ def create_app(
     @application.get("/routes", response_model=list[Route], tags=["catalog"])
     def routes() -> list[Route]:
         return store.routes()
+
+    @application.get("/model/metadata", response_model=ModelMetadataResponse, tags=["model"])
+    def model_card() -> ModelMetadataResponse:
+        """Validated model-card data consumed by the frontend; no metrics are hardcoded in React."""
+        return model_metadata
 
     @application.get("/routes/{route_id}/stops", response_model=list[RouteStop], tags=["catalog"])
     def stops(route_id: str) -> list[RouteStop]:

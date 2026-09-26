@@ -5,6 +5,7 @@ import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, 
 import type { RouteSegment } from "../../routeSegment";
 import { MapView } from "../map/MapView";
 import { StopsModal } from "./StopsModal";
+import type { Theme } from "../../theme";
 
 const LoadChart = lazy(() => import("./LoadChart").then((module) => ({ default: module.LoadChart })));
 
@@ -25,13 +26,14 @@ interface RouteDetailsDashboardProps {
   horizon: Horizon;
   onSelectStop: (point: MapForecastPoint) => void;
   onRetryForecast: () => void;
+  theme: Theme;
 }
 
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric" });
 
 export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, startStopId, focusedPoint, selectedStopId, busy,
-  forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast }: RouteDetailsDashboardProps) {
+  forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast, theme }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
   const points = snapshot?.points.filter((point) => point.direction_id === direction) ?? [];
@@ -43,7 +45,17 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
   const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
 
   return <div className="detail-dashboard">
-    <div className="detail-metrics" aria-live="polite">
+    <div className="detail-main-grid">
+      <MapView route={route} snapshot={snapshot} stops={stops} segment={segment} directionId={direction}
+        startStopId={startStopId} selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
+        theme={theme}
+        onStopSelect={(stopId) => {
+          const point = points.find((item) => item.stop_id === stopId);
+          if (point) onSelectStop(point);
+        }} />
+
+      <aside className="route-insight-panel" aria-label="Аналитика выбранного маршрута">
+      <div className="detail-metrics" aria-live="polite">
       <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средний индекс</span><strong>{average === null ? "—" : number.format(average)}</strong>
         <small>{snapshot?.is_mock ? "Демонстрационный показатель" : "По остановкам направления"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Максимальный индекс</span><strong>{peakStop ? number.format(peakStop.predicted_load) : "—"}</strong>
@@ -54,15 +66,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
         <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
 
-    <div className="detail-main-grid">
-      <MapView route={route} snapshot={snapshot} stops={stops} segment={segment} directionId={direction}
-        startStopId={startStopId} selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
-        onStopSelect={(stopId) => {
-          const point = points.find((item) => item.stop_id === stopId);
-          if (point) onSelectStop(point);
-        }} />
-
-      <aside className="route-summary" aria-labelledby="route-summary-title">
+      <section className="route-summary" aria-labelledby="route-summary-title">
         <div className="route-summary-heading">
           <div className="route-summary-title"><TramIcon weight="bold" aria-hidden="true" /><div><p className="eyebrow">СВОДКА ПО МАРШРУТУ</p><h2 id="route-summary-title">{route?.name ?? "Маршрут"}</h2></div></div>
         </div>
@@ -72,7 +76,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
           <div><strong>{snapshot ? date.format(new Date(snapshot.timestamp)) : "—"}</strong><span>дата прогноза</span></div>
         </div>
         <div className="route-summary-list-heading">
-          <h3>Остановки с высоким индексом</h3>
+          <h3>Зоны внимания</h3>
           <button type="button" className="text-button" onClick={() => setAllStopsOpen(true)} disabled={!stops.length}>Все остановки <ArrowRightIcon weight="bold" aria-hidden="true" /></button>
         </div>
         {ranked.length ? <ol className="route-summary-list">
@@ -86,9 +90,8 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
           </li>)}
         </ol> : <p className="route-summary-empty">{busy ? "Загружаем остановки…" : "Нет прогноза для выбранной даты."}</p>}
         {peakStop && snapshot && <p className="route-summary-note">{loadLabels[loadLevel(peakStop.predicted_load, snapshot)]} нагрузка по текущему срезу. Нажмите остановку, чтобы найти её на карте.</p>}
-      </aside>
-    </div>
-    <section className="detail-forecast" aria-labelledby="detail-forecast-title" aria-busy={forecastBusy}>
+      </section>
+      <section className="detail-forecast" aria-labelledby="detail-forecast-title" aria-busy={forecastBusy}>
       <div className="detail-forecast-heading">
         <span className="detail-forecast-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span>
         <div>
@@ -102,9 +105,11 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       {!forecastBusy && forecastError && <div className="top-panel-error" role="alert"><p>Не удалось получить прогноз: {forecastError}</p>
         <button type="button" onClick={onRetryForecast}>Повторить</button></div>}
       {!forecastBusy && !forecastError && forecast && (forecast.points.length
-        ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} /></Suspense>
+        ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} theme={theme} /></Suspense>
         : <p className="detail-forecast-status">Для выбранного периода нет точек прогноза.</p>)}
-    </section>
+      </section>
+      </aside>
+    </div>
     {allStopsOpen && <StopsModal stops={stops} snapshot={snapshot} selectedStopId={selectedStopId}
       onSelect={onSelectStop} onClose={() => setAllStopsOpen(false)} />}
   </div>;

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "status": "validation_pending",
+  "model_version": "pending-team-report",
+  "built_at": null,
+  "target": "Число прошедших проверку посадок пассажиров для сочетания маршрут × дата × час",
+  "value_unit": "boardings",
+  "coverage": {
+    "history_from": "2025-01-01",
+    "history_to": "2025-10-31",
+    "forecast_from": "2025-11-01",
+    "forecast_to": "2025-12-31",
+    "routes": 10,
+    "horizon_days": 61
+  },
+  "validation": {
+    "method": "Временной expanding-window backtest: каждый fold обучается только на данных, доступных до начала проверяемого периода",
+    "leakage_control": "Целевые значения и фактические признаки из будущего не попадают в train; календарные признаки известны заранее",
+    "baseline": {
+      "name": "Seasonal naive baseline",
+      "wape": null,
+      "mae": null,
+      "bias": null
+    },
+    "final": {
+      "name": "Финальная модель команды",
+      "wape": null,
+      "mae": null,
+      "bias": null
+    },
+    "folds": [],
+    "horizon_buckets": []
+  },
+  "feature_families": [
+    "Маршрут и час отправления",
+    "Календарные признаки: день недели, месяц, выходной",
+    "Горизонт прогноза",
+    "Сезонные и временные признаки"
+  ],
+  "limitations": [
+    "Маршрут 5 исключён из моделирования из-за недостаточного качества исходных данных",
+    "Целевой показатель доступен только на уровне route × date × hour; stop-level target отсутствует",
+    "Посадки пассажиров не равны фактической заполняемости салона",
+    "Численные WAPE, MAE и bias публикуются только после добавления утверждённого отчёта команды"
+  ],
+  "sources": [
+    {
+      "name": "Открытые данные Правительства Москвы",
+      "description": "Расписание, маршруты, остановки и календарь движения: наборы 60661, 60662, 60664 и 60666",
+      "url": "https://data.mos.ru/"
+    },
+    {
+      "name": "OpenStreetMap",
+      "description": "Геометрия трамвайных маршрутов для картографического слоя; не является источником target",
+      "url": "https://www.openstreetmap.org/copyright"
+    }
+  ]
+}

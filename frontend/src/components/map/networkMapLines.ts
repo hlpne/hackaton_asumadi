@@ -1,4 +1,4 @@
-import { loadColor } from "../../loadLevel";
+import { loadColor, neutralMapColor } from "../../loadLevel";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
 
 export interface ColoredRouteLines {
@@ -34,9 +34,9 @@ export function buildNetworkLines(
         const distance = (point.lon - middle[0]) ** 2 + (point.lat - middle[1]) ** 2;
         return distance < best.distance ? { point, distance } : best;
       }, { point: points[0], distance: Infinity }).point : null;
-      const color = noDemoService ? "#8b98a8" : nearest && snapshot
+      const color = noDemoService ? neutralMapColor() : nearest && snapshot
         ? loadColor(nearest.predicted_load, snapshot)
-        : routeColors.get(geometry.route_id) ?? "#8b98a8";
+        : routeColors.get(geometry.route_id) ?? neutralMapColor();
       const lines = groups.get(color) ?? [];
       lines.push(line);
       groups.set(color, lines);

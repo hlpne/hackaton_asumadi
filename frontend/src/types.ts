@@ -90,3 +90,40 @@ export interface TopOverloadResponse {
   ranking_basis: "predicted_load_desc";
   items: Array<MapForecastPoint & { rank: number }>;
 }
+
+export interface ModelMetricSet {
+  name: string;
+  wape: number | null;
+  mae: number | null;
+  bias: number | null;
+}
+
+export interface ModelMetricSlice { label: string; wape: number }
+
+export interface ModelMetadata {
+  schema_version: "1.0";
+  status: "validated" | "validation_pending";
+  model_version: string;
+  built_at: string | null;
+  target: string;
+  value_unit: string;
+  coverage: {
+    history_from: string;
+    history_to: string;
+    forecast_from: string;
+    forecast_to: string;
+    routes: number;
+    horizon_days: number;
+  };
+  validation: {
+    method: string;
+    leakage_control: string;
+    baseline: ModelMetricSet;
+    final: ModelMetricSet;
+    folds: ModelMetricSlice[];
+    horizon_buckets: ModelMetricSlice[];
+  };
+  feature_families: string[];
+  limitations: string[];
+  sources: Array<{ name: string; description: string; url: string | null }>;
+}

@@ -9,9 +9,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
+import type { Theme } from "../../theme";
 
 interface LoadChartProps {
   forecast: ForecastResponse;
+  theme: Theme;
 }
 
 const LABELS: Record<string, string> = {
@@ -40,7 +42,18 @@ function formatHourTick(value: number): string {
   return hour === "00" ? "00:00" : `${Number(hour)}:00`;
 }
 
-export function LoadChart({ forecast }: LoadChartProps) {
+export function LoadChart({ forecast, theme }: LoadChartProps) {
+  const css = getComputedStyle(document.documentElement);
+  const color = (token: string) => css.getPropertyValue(token).trim();
+  const colors = {
+    grid: color("--chart-grid"),
+    muted: color("--text-muted"),
+    surface: color("--surface-raised"),
+    border: color("--border-subtle"),
+    text: color("--text-primary"),
+    interval: color("--chart-interval"),
+    predicted: color("--status-critical"),
+  };
   const data = forecast.points.map((p) => ({
     timestamp: new Date(p.timestamp).getTime(),
     label: formatTick(p.timestamp, forecast.horizon),
@@ -57,28 +70,29 @@ export function LoadChart({ forecast }: LoadChartProps) {
   const chartMax = Math.ceil(Math.max(70, ...forecast.points.map((point) => point.upper_bound ?? point.predicted_load)) / 10) * 10;
 
   return (
-    <div className="chart-wrapper">
+    <div className="chart-wrapper" data-chart-theme={theme}>
       {forecast.value_unit === "demo_index" && (
         <p className="chart-subtitle">Демонстрационный индекс: низкая нагрузка до 35, средняя 35–54, высокая от 55.</p>
       )}
       <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e0e6ef" />
+        <LineChart data={data} margin={{ top: 10, right: 20, left: 12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
           {forecast.horizon === "day" ? <XAxis dataKey="timestamp" type="number" scale="time"
             domain={["dataMin", "dataMax"]} ticks={hourlyTicks} minTickGap={24}
             tickFormatter={(value) => formatHourTick(Number(value))}
-            stroke="#536177" fontSize={12} tickMargin={8} />
-            : <XAxis dataKey="label" stroke="#536177" fontSize={12} tickMargin={8}
+            stroke={colors.muted} fontSize={12} tickMargin={8} />
+            : <XAxis dataKey="label" stroke={colors.muted} fontSize={12} tickMargin={8}
               interval={forecast.horizon === "year" ? 1 : 3} />}
-          <YAxis stroke="#536177" fontSize={12} tickMargin={4} domain={[0, chartMax]} />
+          <YAxis stroke={colors.muted} fontSize={12} tickMargin={4} domain={[0, chartMax]}
+            label={{ value: "Индекс загрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
           <Tooltip
             contentStyle={{
-              background: "#fff",
-              border: "1px solid #d7dfeb",
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
               borderRadius: 6,
               fontSize: 13,
             }}
-            labelStyle={{ color: "#17263c", fontWeight: 600 }}
+            labelStyle={{ color: colors.text, fontWeight: 600 }}
             labelFormatter={(value) => forecast.horizon === "day"
               ? formatTick(new Date(Number(value)).toISOString(), "day")
               : String(value)}
@@ -96,7 +110,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
             type="monotone"
             isAnimationActive={false}
             dataKey="lower_bound"
-            stroke="#8498b2"
+            stroke={colors.interval}
             strokeWidth={1}
             strokeDasharray="4 4"
             dot={false}
@@ -106,7 +120,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
             type="monotone"
             isAnimationActive={false}
             dataKey="upper_bound"
-            stroke="#8498b2"
+            stroke={colors.interval}
             strokeWidth={1}
             strokeDasharray="4 4"
             dot={false}
@@ -116,7 +130,7 @@ export function LoadChart({ forecast }: LoadChartProps) {
             type="monotone"
             isAnimationActive={false}
             dataKey="predicted_load"
-            stroke="#e74646"
+            stroke={colors.predicted}
             strokeWidth={2.5}
             dot={false}
             name="predicted_load"

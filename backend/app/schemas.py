@@ -278,3 +278,53 @@ class LivenessResponse(ContractModel):
 class ReadinessResponse(LivenessResponse):
     catalog_backend: Literal["memory", "postgres"]
     database: Literal["disabled", "ok"]
+
+
+class ModelCoverage(ContractModel):
+    history_from: str
+    history_to: str
+    forecast_from: str
+    forecast_to: str
+    routes: int = Field(ge=1)
+    horizon_days: int = Field(ge=1)
+
+
+class ModelMetricSet(ContractModel):
+    name: str
+    wape: float | None = Field(default=None, ge=0)
+    mae: float | None = Field(default=None, ge=0)
+    bias: float | None = None
+
+
+class ModelMetricSlice(ContractModel):
+    label: str
+    wape: float = Field(ge=0)
+
+
+class ModelValidation(ContractModel):
+    method: str
+    leakage_control: str
+    baseline: ModelMetricSet
+    final: ModelMetricSet
+    folds: list[ModelMetricSlice]
+    horizon_buckets: list[ModelMetricSlice]
+
+
+class ModelDataSource(ContractModel):
+    name: str
+    description: str
+    url: str | None = None
+
+
+class ModelMetadataResponse(ContractModel):
+    schema_version: Literal["1.0"] = "1.0"
+    status: Literal["validated", "validation_pending"]
+    model_version: str
+    built_at: str | None = None
+    target: str
+    value_unit: str
+    coverage: ModelCoverage
+    validation: ModelValidation
+    feature_families: list[str]
+    limitations: list[str]
+    sources: list[ModelDataSource]

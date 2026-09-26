@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
+import type { Theme } from "../../theme";
+import { neutralMapColor } from "../../loadLevel";
 
 export type LngLat = [number, number];
 export type MapChild = object;
@@ -60,9 +62,10 @@ interface YandexMapProps {
   colorForValue: (value: number, snapshot: MapForecastResponse) => string;
   onStopSelect: (stopId: string) => void;
   onError: (message: string) => void;
+  theme: Theme;
 }
 
-export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError }: YandexMapProps) {
+export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError, theme }: YandexMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
@@ -78,7 +81,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
         location: { center: [37.62, 55.75], zoom: 10 },
         showScaleInCopyrights: true,
       });
-      map.addChild(new api.YMapDefaultSchemeLayer({}));
+      map.addChild(new api.YMapDefaultSchemeLayer({ theme }));
       map.addChild(new api.YMapDefaultFeaturesLayer({}));
       mapRef.current = map;
       apiRef.current = api;
@@ -96,7 +99,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       overlays.current = [];
       setReady(false);
     };
-  }, [apiKey, onError]);
+  }, [apiKey, onError, theme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -121,11 +124,11 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
         const distance = (point.lon - middle[0]) ** 2 + (point.lat - middle[1]) ** 2;
         return distance < best.distance ? { point, distance } : best;
       }, { point: points[0], distance: Infinity }).point : null;
-      const color = noDemoService ? "#8b98a8" : closest && snapshot
+      const color = noDemoService ? neutralMapColor() : closest && snapshot
         ? colorForValue(closest.predicted_load, snapshot) : route.color;
       add(new api.YMapFeature({
         geometry: { type: "LineString", coordinates },
-        style: { stroke: [{ width: 5, color }] },
+        style: { stroke: [{ width: 7, color, opacity: .96 }] },
       }));
     });
 
@@ -133,7 +136,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const button = document.createElement("button");
       button.type = "button";
       button.className = `yandex-stop-marker${point.stop_id === startStopId ? " segment-start" : ""}${point.stop_id === selectedStopId ? " selected" : ""}`;
-      button.style.background = noDemoService ? "#8b98a8" : snapshot
+      button.style.background = noDemoService ? neutralMapColor() : snapshot
         ? colorForValue(point.predicted_load, snapshot) : route.color;
       button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name} · индекс ${point.predicted_load.toLocaleString("ru-RU")}`;
       button.setAttribute("aria-label", button.title);

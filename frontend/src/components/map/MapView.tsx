@@ -3,8 +3,10 @@ import { TramIcon } from "@phosphor-icons/react";
 import { getRouteGeometry } from "../../api";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry, RouteStop } from "../../types";
 import { YandexMap } from "./YandexMap";
+import { RouteMapFallback } from "./RouteMapFallback";
 import { clipRouteLines, type RouteSegment } from "../../routeSegment";
 import { loadColor, loadColors } from "../../loadLevel";
+import type { Theme } from "../../theme";
 
 interface MapViewProps {
   route?: Route;
@@ -17,9 +19,10 @@ interface MapViewProps {
   focusedPoint: MapForecastPoint | null;
   busy: boolean;
   onStopSelect: (stopId: string) => void;
+  theme: Theme;
 }
 
-export function MapView({ route, snapshot, stops, segment, directionId, startStopId, selectedStopId, focusedPoint, busy, onStopSelect }: MapViewProps) {
+export function MapView({ route, snapshot, stops, segment, directionId, startStopId, selectedStopId, focusedPoint, busy, onStopSelect, theme }: MapViewProps) {
   const [geometry, setGeometry] = useState<RouteGeometry | null>(null);
   const [geometryError, setGeometryError] = useState("");
   const [yandexError, setYandexError] = useState("");
@@ -82,10 +85,12 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
         colorForValue={loadColor}
         onStopSelect={onStopSelect}
         onError={onYandexError}
-      /> : <div className="map-container map-unavailable" role="alert">
-        {yandexError || "Для карты не задан VITE_YANDEX_MAPS_API_KEY."} Подложка OpenStreetMap отключена.
-      </div>}
-      {yandexKey && !yandexError && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
+        theme={theme}
+      /> : <RouteMapFallback geometry={displayGeometry} route={route} snapshot={snapshot}
+        markers={markers} selectedStopId={selectedStopId} startStopId={startStopId}
+        message={yandexError || "Подложка Яндекс Карт отключена: API key не задан."}
+        onStopSelect={onStopSelect} />}
+      <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
       </div>
       {geometryError && <p className="map-empty" role="alert">Не удалось получить линии маршрута: {geometryError}</p>}
       {segment && geometry && displayGeometry?.lines.length === 0 &&

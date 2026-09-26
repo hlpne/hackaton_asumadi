@@ -4,6 +4,7 @@ import type { MapForecastPoint, MapForecastResponse, Route } from "../../types";
 import { snapshotPeriod } from "../../constants";
 import { rankNetwork } from "../../networkRanking";
 import { NetworkMap } from "../map/NetworkMap";
+import type { Theme } from "../../theme";
 
 type RankingView = "routes" | "stops";
 
@@ -15,6 +16,7 @@ interface RankingsPanelProps {
   onSelectRoute: (routeId: string) => void;
   onSelectStop: (point: MapForecastPoint) => void;
   onRetry: () => void;
+  theme: Theme;
 }
 
 const timestampFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -22,7 +24,7 @@ const timestampFormatter = new Intl.DateTimeFormat("ru-RU", {
 });
 const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 
-export function RankingsPanel({ routes: catalogRoutes, networkData, networkBusy, networkError, onSelectRoute, onSelectStop, onRetry }: RankingsPanelProps) {
+export function RankingsPanel({ routes: catalogRoutes, networkData, networkBusy, networkError, onSelectRoute, onSelectStop, onRetry, theme }: RankingsPanelProps) {
   const [view, setView] = useState<RankingView>("routes");
   const network = useMemo(() => networkData ? rankNetwork(networkData) : null, [networkData]);
   const routes = network?.routes ?? [];
@@ -51,7 +53,7 @@ export function RankingsPanel({ routes: catalogRoutes, networkData, networkBusy,
         <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Первый в рейтинге</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name : "Нет нагрузки в срезе"}</strong></article>
       </div>
 
-      <NetworkMap routes={catalogRoutes} snapshot={networkData} />
+      <NetworkMap routes={catalogRoutes} snapshot={networkData} theme={theme} onSelectRoute={onSelectRoute} />
 
       <section className="network-comparison" aria-labelledby="network-comparison-title">
         <div className="network-section-heading"><div><h2 id="network-comparison-title">Сравнение маршрутов</h2>
