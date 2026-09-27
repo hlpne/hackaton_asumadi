@@ -81,6 +81,7 @@ export default function App() {
   const [forecastStopId, setForecastStopId] = useState(() => queryValue("stop"));
   const [horizon, setHorizon] = useState<Horizon>(initialHorizon);
   const [date, setDate] = useState(() => queryValue("date") || queryValue("dateFrom") || currentMoscowDate());
+  const [settledFilters, setSettledFilters] = useState(() => ({ routeId, horizon, date }));
   const [splitCount, setSplitCount] = useState<1 | 2 | 3 | 4>(initialSplitCount);
   const [splitEdge, setSplitEdge] = useState<SplitEdge>("right");
   const [networkSplitCount, setNetworkSplitCount] = useState<1 | 2 | 3 | 4>(() => initialSplitCount("networkSplit"));
@@ -137,6 +138,11 @@ export default function App() {
   }
 
   useEffect(() => applyTheme(theme), [theme]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettledFilters({ routeId, horizon, date }), 420);
+    return () => window.clearTimeout(timer);
+  }, [routeId, horizon, date]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -213,71 +219,80 @@ export default function App() {
   }, [routeId, splitCount, page]);
 
   useEffect(() => {
-    if (splitCount > 1 || !routeId || !date) {
+    if (settledFilters.routeId !== routeId || settledFilters.horizon !== horizon || settledFilters.date !== date) {
+      setBusy(false);
+      return;
+    }
+    if (splitCount > 1 || !settledFilters.routeId || !settledFilters.date) {
       setMapForecast(null);
       setBusy(false);
       setError("");
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon);
+    const timestamp = snapshotTimestamp(settledFilters.date, settledFilters.horizon);
     setBusy(true);
     setError("");
-    setMapForecast(null);
-    getMapForecast({ route_id: routeId, horizon, timestamp, forecast_origin: timestamp }, controller.signal)
+    getMapForecast({ route_id: settledFilters.routeId, horizon: settledFilters.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setMapForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
 
     return () => controller.abort();
-  }, [routeId, horizon, date, retry, splitCount]);
+  }, [settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, retry, splitCount]);
 
   useEffect(() => {
     if (page !== "details" || splitCount > 1) return;
-    if (!routeId || !date) {
+    if (settledFilters.routeId !== routeId || settledFilters.horizon !== horizon || settledFilters.date !== date) {
+      setForecastBusy(false);
+      return;
+    }
+    if (!settledFilters.routeId || !settledFilters.date) {
       setRouteForecast(null);
       setForecastError("");
       setForecastBusy(false);
       return;
     }
     const controller = new AbortController();
-    const range = periodRequest(date, horizon);
+    const range = periodRequest(settledFilters.date, settledFilters.horizon);
     const direction = focusedPoint?.direction_id ?? segment?.directionId ?? fromStop?.direction_id ?? directionId;
     const directionStartStop = stops.filter((stop) => stop.direction_id === direction)
       .sort((a, b) => a.sequence - b.sequence)[0];
     const stopId = focusedPoint?.stop_id || segment?.from.id || forecastStopId || directionStartStop?.id;
-    setRouteForecast(null);
     setForecastError("");
     setForecastBusy(true);
-    getForecast({ route_id: routeId, stop_id: stopId, direction_id: direction, horizon,
+    getForecast({ route_id: settledFilters.routeId, stop_id: stopId, direction_id: direction, horizon: settledFilters.horizon,
       resolution: range.resolution, from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setRouteForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [page, splitCount, routeId, horizon, date, directionId,
+  }, [page, splitCount, settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, directionId,
     focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId,
     fromStop?.direction_id, forecastStopId, stops, retry]);
 
   useEffect(() => {
     if (page !== "analytics" || networkSplitCount > 1) return;
-    if (!date) {
+    if (settledFilters.horizon !== horizon || settledFilters.date !== date) {
+      setNetworkBusy(false);
+      return;
+    }
+    if (!settledFilters.date) {
       setNetworkForecast(null);
       setNetworkError("");
       setNetworkBusy(false);
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon);
+    const timestamp = snapshotTimestamp(settledFilters.date, settledFilters.horizon);
     setNetworkBusy(true);
     setNetworkError("");
-    setNetworkForecast(null);
-    getMapForecast({ horizon, timestamp, forecast_origin: timestamp }, controller.signal)
+    getMapForecast({ horizon: settledFilters.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setNetworkForecast(supportedNetworkSnapshot(data)); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [page, horizon, date, retry, networkSplitCount]);
+  }, [page, settledFilters.horizon, settledFilters.date, horizon, date, retry, networkSplitCount]);
 
   return (
     <>
@@ -308,7 +323,7 @@ export default function App() {
             forecastBusy={forecastBusy}
             forecastError={forecastError}
             forecastLabel={focusedPoint?.stop_name ?? stops.find((stop) => stop.id === (segment?.from.id || forecastStopId))?.name}
-            horizon={horizon}
+            horizon={settledFilters.horizon}
             onSelectStop={(point) => {
               setFocusedPoint(point);
               setForecastStopId(point.stop_id);
@@ -335,6 +350,7 @@ export default function App() {
                 setToStopId("");
                 setForecastStopId("");
                 setMapForecast(null);
+                setRouteForecast(null);
                 setRouteId(id);
               }}
               onFromStopChange={(id) => {
@@ -346,7 +362,6 @@ export default function App() {
               onToStopChange={(id) => { setFocusedPoint(null); setToStopId(id); }}
               onHorizonChange={(value) => { setFocusedPoint(null); setHorizon(value); }}
               onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
-              onRefresh={() => setRetry((value) => value + 1)}
             />}
           />
         </div>}
@@ -413,7 +428,6 @@ export default function App() {
             onToStopChange={setToStopId}
             onHorizonChange={setHorizon}
             onDateChange={setDate}
-            onRefresh={() => setRetry((value) => value + 1)}
           />}
         />}
 

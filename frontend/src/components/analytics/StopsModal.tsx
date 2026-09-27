@@ -59,22 +59,13 @@ export function StopsModal({ stops, snapshot, selectedStopId, onSelect, onClose 
           <button ref={closeButton} type="button" className="modal-close" onClick={onClose} aria-label="Закрыть окно">×</button>
         </div>
         <div className="stops-modal-filters">
-          <label>Направление
-            <select value={direction} onChange={(event) => setDirection(event.target.value)}>
-              <option value="all">Оба направления</option>
-              <option value="0">Направление 1</option>
-              <option value="1">Направление 2</option>
-            </select>
-          </label>
-          <label>Загрузка
-            <select value={load} onChange={(event) => setLoad(event.target.value as LoadFilter)}>
-              <option value="all">Любая</option>
-              <option value="low">Низкая</option>
-              <option value="medium">Средняя</option>
-              <option value="high">Высокая</option>
-              <option value="unavailable">Без прогноза</option>
-            </select>
-          </label>
+          <WheelPicker label="Направление" value={direction} onChange={setDirection}
+            options={[{ value: "all", label: "Оба направления" }, { value: "0", label: "Направление 1" },
+              { value: "1", label: "Направление 2" }]} />
+          <WheelPicker label="Загрузка" value={load} onChange={(value) => setLoad(value as LoadFilter)}
+            options={[{ value: "all", label: "Любая" }, { value: "low", label: "Низкая" },
+              { value: "medium", label: "Средняя" }, { value: "high", label: "Высокая" },
+              { value: "unavailable", label: "Без прогноза" }]} />
         </div>
         <div className="modal-body stops-modal-body">
           <p className="stops-count" role="status">Показано {visible.length} из {stops.length} остановок</p>

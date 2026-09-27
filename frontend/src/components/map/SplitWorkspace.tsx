@@ -58,6 +58,11 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [settledConfig, setSettledConfig] = useState(config);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettledConfig(config), 420);
+    return () => window.clearTimeout(timer);
+  }, [config.routeId, config.directionId, config.horizon, config.date, config.stopId]);
   const route = routes.find((item) => item.id === config.routeId);
   const routeOptions: WheelOption[] = routes.map((item) => ({
     value: item.id,
@@ -75,36 +80,49 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
   }, [config.routeId]);
 
   useEffect(() => {
+    if (settledConfig.routeId !== config.routeId || settledConfig.directionId !== config.directionId ||
+      settledConfig.horizon !== config.horizon || settledConfig.date !== config.date) {
+      setBusy(false);
+      return;
+    }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(config.date, config.horizon);
+    const timestamp = snapshotTimestamp(settledConfig.date, settledConfig.horizon);
     setBusy(true);
     setError("");
     getMapForecast(mode === "details" ? {
-      route_id: config.routeId, direction_id: config.directionId, horizon: config.horizon,
+      route_id: settledConfig.routeId, direction_id: settledConfig.directionId, horizon: settledConfig.horizon,
       timestamp, forecast_origin: timestamp,
-    } : { horizon: config.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
+    } : { horizon: settledConfig.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setSnapshot(mode === "analytics" ? supportedNetworkSnapshot(data) : data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
-  }, [config.routeId, config.directionId, config.horizon, config.date, retry, mode]);
+  }, [config.routeId, config.directionId, config.horizon, config.date,
+    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, retry, mode]);
 
   useEffect(() => {
     if (mode !== "details" || !stops.length) return;
+    if (settledConfig.routeId !== config.routeId || settledConfig.directionId !== config.directionId ||
+      settledConfig.horizon !== config.horizon || settledConfig.date !== config.date ||
+      settledConfig.stopId !== config.stopId) {
+      setForecastBusy(false);
+      return;
+    }
     const controller = new AbortController();
-    const range = periodRequest(config.date, config.horizon);
-    const first = stops.find((item) => item.direction_id === config.directionId);
+    const range = periodRequest(settledConfig.date, settledConfig.horizon);
+    const first = stops.find((item) => item.direction_id === settledConfig.directionId);
     setForecastBusy(true);
     setForecastError("");
-    setForecast(null);
-    getForecast({ route_id: config.routeId, stop_id: selected?.stop_id || config.stopId || first?.id,
-      direction_id: config.directionId, horizon: config.horizon, resolution: range.resolution,
+    getForecast({ route_id: settledConfig.routeId, stop_id: selected?.stop_id || settledConfig.stopId || first?.id,
+      direction_id: settledConfig.directionId, horizon: settledConfig.horizon, resolution: range.resolution,
       from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [mode, config.routeId, config.directionId, config.horizon, config.date, config.stopId, selected?.stop_id, stops, retry]);
+  }, [mode, config.routeId, config.directionId, config.horizon, config.date, config.stopId,
+    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, settledConfig.stopId,
+    selected?.stop_id, stops, retry]);
 
   const heading = <div className="split-pane-heading"><div><span>ОКНО 0{index + 1}</span><strong>{route?.name.replace(" · демопрогноз", "") ?? "Маршрут"}</strong></div>
     <div className="split-pane-actions"><button type="button" title="Открыть выбранное окно" aria-label="Открыть выбранное окно"
@@ -129,7 +147,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
           onRouteChange={(routeId) => { setStops([]); onChange({ ...config, routeId, stopId: "" }); }}
           onFromStopChange={(stopId) => onChange({ ...config, stopId })} onToStopChange={() => {}}
           onHorizonChange={(horizon) => onChange({ ...config, horizon })}
-          onDateChange={(date) => onChange({ ...config, date })} onRefresh={() => setRetry((value) => value + 1)} /></>} />
+          onDateChange={(date) => onChange({ ...config, date })} /></>} />
     </section>;
   }
 
@@ -153,9 +171,6 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       <PeriodControls compact horizon={config.horizon} date={config.date}
         onHorizonChange={(horizon) => onChange({ ...config, horizon })}
         onDateChange={(date) => onChange({ ...config, date })} />
-      <button type="button" className="split-refresh" disabled={busy} onClick={() => setRetry((value) => value + 1)}>
-        {busy ? "Обновляем…" : "Обновить окно"}
-      </button>
       {error && <p className="split-pane-error" role="alert">{error}</p>}
     </div>} />
   </section>;

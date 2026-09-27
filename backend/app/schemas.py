@@ -65,12 +65,10 @@ class ForecastRequest(ContractModel):
                 raise ValueError("month/year boundaries must be on whole-hour boundaries in Europe/Moscow")
             if self.horizon != Horizon.DAY and value.hour:
                 raise ValueError("month/year boundaries must be at midnight in Europe/Moscow")
-            if self.horizon == Horizon.YEAR and value.day != 1:
-                raise ValueError("year boundaries must be the first day of a month")
         limit = {
             Horizon.DAY: self.forecast_origin + timedelta(days=1),
-            Horizon.MONTH: add_months(self.forecast_origin, 1),
-            Horizon.YEAR: add_months(self.forecast_origin, 12),
+            Horizon.MONTH: max(add_months(self.forecast_origin, 1), self.forecast_origin + timedelta(days=30)),
+            Horizon.YEAR: max(add_months(self.forecast_origin, 12), self.forecast_origin + timedelta(days=365)),
         }[self.horizon]
         if self.end > limit:
             raise ValueError("to exceeds the selected horizon measured from forecast_origin")
@@ -81,10 +79,12 @@ class ForecastRequest(ContractModel):
             return []
         result = []
         current = self.start
+        month_index = 0
         while current < self.end:
             result.append(current)
             if self.horizon == Horizon.YEAR:
-                current = add_months(current, 1)
+                month_index += 1
+                current = add_months(self.start, month_index)
             else:
                 current += (timedelta(minutes=1) if self.resolution == "PT1M" else
                             timedelta(hours=1) if self.horizon == Horizon.DAY else timedelta(days=1))
@@ -161,8 +161,6 @@ class SnapshotRequest(ContractModel):
             raise ValueError("month/year timestamp must be on a whole-hour boundary in Europe/Moscow")
         if self.horizon != Horizon.DAY and self.timestamp.hour:
             raise ValueError("month/year timestamp must be at midnight in Europe/Moscow")
-        if self.horizon == Horizon.YEAR and self.timestamp.day != 1:
-            raise ValueError("year timestamp must be the first day of a month")
         return self
 
     def forecast_request(self, route_id: str, stop_id: str, direction_id: int) -> ForecastRequest:

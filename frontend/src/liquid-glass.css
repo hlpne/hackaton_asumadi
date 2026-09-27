@@ -1,0 +1,357 @@
+/* The map is the base layer; these surfaces form a restrained glass hierarchy. */
+:root {
+  --glass-shell: rgba(9, 23, 40, .79);
+  --glass-card: rgba(25, 43, 64, .68);
+  --glass-tile: rgba(35, 54, 76, .49);
+  --glass-control: rgba(36, 57, 80, .5);
+  --glass-edge: rgba(169, 197, 229, .15);
+  --glass-highlight: rgba(226, 241, 255, .1);
+  --glass-shadow: 0 18px 46px rgba(0, 5, 16, .34);
+}
+
+:root[data-theme="light"] {
+  --glass-shell: rgba(246, 250, 255, .82);
+  --glass-card: rgba(255, 255, 255, .73);
+  --glass-tile: rgba(249, 252, 255, .68);
+  --glass-control: rgba(237, 246, 255, .69);
+  --glass-edge: rgba(95, 132, 173, .21);
+  --glass-highlight: rgba(255, 255, 255, .65);
+  --glass-shadow: 0 18px 46px rgba(35, 69, 110, .16);
+}
+
+.workspace-page, .analytics-page { background: #060e19; }
+:root[data-theme="light"] .workspace-page,
+:root[data-theme="light"] .analytics-page { background: #edf3fa; }
+
+@media (min-width: 901px) {
+  .workspace-page > div > .detail-dashboard > .detail-main-grid,
+  .analytics-page > .network-analytics > .network-workspace {
+    position: relative;
+    display: block;
+    height: 100%;
+  }
+  .workspace-page > div > .detail-dashboard > .detail-main-grid > .map-wrapper,
+  .analytics-page > .network-analytics > .network-workspace > .network-map {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .workspace-page > div > .detail-dashboard > .detail-main-grid > .route-insight-panel,
+  .analytics-page > .network-analytics > .network-workspace > .network-side-panel {
+    position: absolute;
+    z-index: 20;
+    top: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: clamp(460px, 32vw, 530px);
+    height: auto;
+    max-height: none;
+  }
+}
+
+.detail-main-grid > .map-wrapper,
+.network-workspace > .network-map { background: #060e19; }
+.route-map-fallback, .network-map-fallback {
+  border: 0;
+  background-color: #060e19;
+  background-image:
+    radial-gradient(circle at 80% 18%, rgba(52, 107, 168, .065), transparent 39%),
+    linear-gradient(rgba(138, 167, 202, .065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 167, 202, .065) 1px, transparent 1px);
+  background-size: auto, 5% 5%, 5% 5%;
+}
+:root[data-theme="light"] .detail-main-grid > .map-wrapper,
+:root[data-theme="light"] .network-workspace > .network-map,
+:root[data-theme="light"] .route-map-fallback,
+:root[data-theme="light"] .network-map-fallback { background-color: #eaf1f9; }
+.route-map-fallback svg { filter: saturate(.9) drop-shadow(0 0 5px rgba(154, 201, 231, .13)); }
+.fallback-stop-dot {
+  fill: #102238;
+  stroke: rgba(232, 242, 252, .87);
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 3px rgba(162, 207, 255, .21));
+  transition: r 180ms ease, fill 180ms ease, filter 180ms ease;
+}
+.fallback-stop.segment-start .fallback-stop-dot { fill: #193c32; stroke: rgba(163, 222, 187, .9); stroke-width: 2.7; }
+.fallback-stop:hover .fallback-stop-dot,
+.fallback-stop:focus-visible .fallback-stop-dot { r: 8; fill: #173655; filter: drop-shadow(0 0 5px rgba(174, 216, 255, .34)); }
+.fallback-stop-ring { fill: rgba(91, 158, 229, .1); stroke: rgba(169, 213, 255, .43); stroke-width: 2.5; }
+.yandex-stop-marker,
+button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 255, .88); box-shadow: 0 0 0 2px rgba(104, 162, 224, .13), 0 2px 8px rgba(0, 0, 0, .28); }
+.yandex-stop-marker:hover,
+.yandex-stop-marker:focus-visible { box-shadow: 0 0 0 4px rgba(104, 162, 224, .19), 0 3px 11px rgba(0, 0, 0, .28); }
+
+.route-insight-panel, .network-side-panel {
+  padding: 11px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--glass-edge);
+  border-radius: 24px;
+  background: var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(135%);
+  -webkit-backdrop-filter: blur(28px) saturate(135%);
+  scrollbar-gutter: stable;
+}
+.route-insight-panel > .filters-panel,
+.network-side-panel > .filters-panel { margin-bottom: .7rem; }
+
+.filters-panel,
+.route-insight-panel .detail-metric,
+.route-insight-panel .detail-forecast,
+.route-insight-panel .route-summary,
+.network-side-panel .network-metrics article,
+.network-side-panel .rankings-panel {
+  border: 1px solid var(--glass-edge);
+  background: var(--glass-card);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 8px 20px rgba(0, 5, 16, .12);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+.filters-panel { gap: .8rem; padding: 1rem; border-radius: 20px; }
+.filters-panel .period-control {
+  min-height: 0;
+  gap: .55rem;
+  padding: .75rem 0 .7rem;
+  border-top: 1px solid var(--glass-edge);
+  border-bottom: 1px solid var(--glass-edge);
+}
+.filters-panel .period-control .period-note { min-height: 0; margin-top: .1rem; }
+.filters-panel .horizon-switch > div { background: var(--glass-control); border-color: var(--glass-edge); }
+.filters-panel .horizon-option--active { background: rgba(71, 126, 186, .34) !important; }
+.route-insight-panel .detail-metric,
+.network-side-panel .network-metrics article { border-radius: 15px; background: var(--glass-tile); }
+.route-insight-panel .detail-forecast,
+.route-insight-panel .route-summary,
+.network-side-panel .rankings-panel { border-radius: 19px; }
+.route-insight-panel .detail-metric,
+.network-side-panel .network-metrics article {
+  transition: background 190ms ease, border-color 190ms ease, box-shadow 190ms ease, transform 190ms ease;
+}
+.route-insight-panel .detail-metric:hover,
+.network-side-panel .network-metrics article:hover {
+  border-color: rgba(164, 202, 241, .24);
+  background: rgba(43, 65, 89, .58);
+  box-shadow: inset 0 1px rgba(234, 245, 255, .13), 0 9px 20px rgba(0, 5, 16, .17);
+  transform: translateY(-1px);
+}
+:root[data-theme="light"] .route-insight-panel .detail-metric:hover,
+:root[data-theme="light"] .network-side-panel .network-metrics article:hover { background: rgba(231, 244, 255, .86); }
+
+.filters-panel-heading { align-items: center; }
+.filters-panel-heading h2,
+.route-insight-panel .detail-forecast-heading h2,
+.route-summary-heading h2 { font-size: 1rem; font-weight: 650; }
+.filters-panel .glass-panel-toggle {
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  border: 1px solid rgba(144, 197, 243, .25);
+  border-radius: 14px;
+  background: rgba(54, 99, 145, .27);
+  color: #b9ddff;
+  box-shadow: inset 0 1px rgba(224, 243, 255, .17), 0 0 18px rgba(61, 137, 213, .08);
+}
+.filters-panel .glass-panel-toggle:hover:not(:disabled),
+.filters-panel .glass-panel-toggle[aria-expanded="true"] { background: rgba(62, 111, 163, .38); color: #e4f3ff; }
+.filters-live {
+  flex: 0 0 auto;
+  padding: .37rem .58rem;
+  border: 1px solid rgba(90, 164, 117, .18);
+  border-radius: 999px;
+  background: rgba(34, 83, 58, .18);
+  color: #a5d5b5;
+  font-size: .62rem;
+  letter-spacing: .01em;
+}
+.filters-live i { width: 6px; height: 6px; box-shadow: 0 0 7px rgba(92, 195, 118, .22); }
+:root[data-theme="light"] .filters-live { border-color: rgba(49, 132, 77, .18); background: rgba(218, 240, 225, .82); color: #236b3c; }
+:root[data-theme="light"] .filters-panel .glass-panel-toggle { border-color: rgba(73, 131, 185, .22); background: rgba(222, 238, 253, .77); color: #2c6fa7; }
+
+.route-insight-panel .detail-metrics { gap: .55rem; margin-top: .7rem; }
+.route-insight-panel .detail-metric { min-height: 96px; padding: .8rem; }
+.route-insight-panel .detail-metric-icon,
+.route-insight-panel .detail-forecast-icon {
+  border: 1px solid rgba(137, 190, 244, .14);
+  border-radius: 11px;
+  background: rgba(72, 125, 181, .17);
+  color: #9ecbfa;
+  box-shadow: inset 0 1px rgba(206, 232, 255, .11), 0 0 15px rgba(78, 143, 211, .06);
+}
+.route-insight-panel .detail-metric-content > span { color: var(--text-secondary); font-size: .72rem; font-weight: 600; }
+.route-insight-panel .detail-metric-content > strong { font-size: 1.26rem; font-weight: 700; letter-spacing: -.025em; }
+.route-insight-panel .detail-metric .detail-metric-name { font-size: .87rem; }
+.route-insight-panel .detail-metric-content > small { color: var(--text-muted); font-size: .69rem; }
+.route-insight-panel .detail-forecast,
+.route-insight-panel .route-summary { margin-top: .7rem; padding: 1rem; }
+.route-insight-panel .chart-wrapper .recharts-cartesian-grid line { stroke-opacity: .45; }
+.route-insight-panel .chart-wrapper .recharts-line path { filter: drop-shadow(0 0 3px rgba(241, 91, 109, .12)); }
+.route-insight-panel .chart-wrapper .recharts-tooltip-wrapper { filter: drop-shadow(0 8px 18px rgba(0, 5, 16, .24)); }
+
+.wheel-trigger,
+.period-control .date-trigger,
+.year-picker,
+.period-drawer .date-trigger,
+.stops-modal-filters .wheel-trigger {
+  min-height: 46px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  background: var(--glass-control);
+  box-shadow: inset 0 1px var(--glass-highlight);
+  backdrop-filter: blur(15px) saturate(125%);
+  -webkit-backdrop-filter: blur(15px) saturate(125%);
+  transition: background 190ms ease, border-color 190ms ease, box-shadow 190ms ease;
+}
+.wheel-trigger:hover:not(:disabled),
+.period-control .date-trigger:hover:not(:disabled) { border-color: rgba(144, 187, 232, .29); background: rgba(48, 73, 100, .61); }
+.wheel-trigger[aria-expanded="true"],
+.wheel-trigger:focus-visible,
+.period-control .date-trigger:focus-visible {
+  border-color: rgba(105, 163, 230, .49);
+  box-shadow: 0 0 0 3px rgba(73, 137, 217, .1), inset 0 1px var(--glass-highlight);
+  outline: none;
+}
+.wheel-trigger:disabled { opacity: .55; }
+.wheel-popover--portal, .wheel-popover--inline,
+.date-popover, .period-drawer {
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  background: var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: blur(26px) saturate(135%);
+  -webkit-backdrop-filter: blur(26px) saturate(135%);
+}
+.date-popover--portal {
+  position: fixed;
+  z-index: 160;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.wheel-option::before { background: var(--glass-control); border-color: rgba(145, 184, 225, .11); }
+.wheel-option--active::before,
+.wheel-option:hover:not(:disabled)::before { background: rgba(62, 91, 121, .55); border-color: rgba(151, 191, 232, .21); }
+.wheel-list { padding: 6px .55rem; scroll-snap-type: none; mask-image: none; }
+.wheel-option { scroll-snap-align: none; }
+:root[data-theme="light"] .wheel-trigger:hover:not(:disabled),
+:root[data-theme="light"] .period-control .date-trigger:hover:not(:disabled) { background: rgba(223, 240, 255, .84); }
+:root[data-theme="light"] .wheel-option--active::before,
+:root[data-theme="light"] .wheel-option:hover:not(:disabled)::before { background: rgba(204, 227, 252, .76); }
+
+.filters-panel .refresh-forecast {
+  position: relative;
+  min-height: 46px;
+  overflow: hidden;
+  border: 1px solid rgba(139, 189, 255, .28);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(68, 135, 255, .94), rgba(45, 95, 215, .86));
+  box-shadow: inset 0 1px rgba(235, 246, 255, .24), 0 7px 18px rgba(43, 105, 217, .22);
+  transition: transform 190ms ease, filter 190ms ease, box-shadow 190ms ease;
+}
+.filters-panel .refresh-forecast:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.07); box-shadow: inset 0 1px rgba(240, 248, 255, .32), 0 9px 23px rgba(43, 105, 217, .3); }
+.filters-panel .refresh-forecast:active:not(:disabled) { transform: translateY(0); }
+
+.detail-main-grid > .map-wrapper .map-heading,
+.network-workspace > .network-map .map-heading,
+.detail-main-grid > .map-wrapper .map-legend,
+.split-map-area .map-legend,
+.fallback-map-note,
+.map-route-tooltip,
+.network-route-choice {
+  border: 1px solid var(--glass-edge);
+  background: var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 12px 32px rgba(0, 5, 16, .26);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+.detail-main-grid > .map-wrapper .map-heading,
+.network-workspace > .network-map .map-heading { border-radius: 18px; }
+.detail-main-grid > .map-wrapper .map-heading h2,
+.network-workspace > .network-map .map-heading h2 { font-size: .93rem; font-weight: 650; }
+.detail-main-grid > .map-wrapper .map-legend,
+.split-map-area .map-legend { border-radius: 999px; gap: .6rem 1rem; font-size: .72rem; }
+.detail-main-grid > .map-wrapper .map-legend i,
+.split-map-area .map-legend i { width: 9px; height: 9px; box-shadow: 0 0 8px currentColor; }
+.fallback-map-note { border-radius: 14px; }
+.map-route-tooltip { border-radius: 10px; }
+.map-attribution { border-color: var(--glass-edge); background: var(--glass-shell); border-radius: 8px; }
+
+@media (max-width: 900px) {
+  .workspace-page, .analytics-page { background: var(--bg-canvas); }
+  .route-insight-panel, .network-side-panel { position: relative; width: 100%; max-height: none; border-radius: 22px; }
+  .detail-main-grid > .map-wrapper, .network-workspace > .network-map { min-width: 0; }
+}
+@media (max-width: 680px) {
+  .route-insight-panel, .network-side-panel { padding: 8px; }
+  .route-insight-panel .detail-metric { min-height: 92px; }
+  .filters-panel { padding: .85rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-insight-panel .detail-metric,
+  .network-side-panel .network-metrics article,
+  .filters-panel .refresh-forecast { transition: none; }
+}
+
+/* Floating sidebar controls share the map canvas on monitoring and network pages. */
+.detail-main-grid, .network-workspace { position: relative; }
+.floating-panel-hidden > .route-insight-panel,
+.floating-panel-hidden > .network-side-panel { display: none; }
+.floating-panel-hidden > .map-wrapper .map-heading,
+.floating-panel-hidden > .map-wrapper .map-legend,
+.floating-panel-hidden > .network-map .map-heading { display: none; }
+.floating-panel-toggle,
+.floating-panel-resize {
+  position: absolute; z-index: 25; color: var(--text-primary);
+  border: 1px solid var(--glass-edge); background: var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 8px 22px rgba(0, 5, 16, .26);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+.floating-panel-toggle {
+  display: grid; place-items: center; top: 14px; right: 22px;
+  width: 34px; height: 34px; min-width: 34px; min-height: 34px;
+  padding: 0; border-radius: 11px;
+}
+.floating-panel-toggle svg { width: 18px; height: 18px; }
+.route-insight-panel > .floating-panel-toggle,
+.network-side-panel > .floating-panel-toggle { top: 11px; right: 14px; }
+.floating-panel-resize {
+  top: 50%; right: calc(var(--panel-effective-width, 510px) + 7px);
+  width: 14px; height: 76px; min-width: 14px; min-height: 76px;
+  padding: 0; transform: translateY(-50%); border-radius: 999px;
+  cursor: ew-resize; touch-action: none; user-select: none;
+}
+.floating-panel-resize span { display: block; font-size: 1.2rem; line-height: 1; }
+.floating-panel-toggle:hover,
+.floating-panel-toggle:focus-visible,
+.floating-panel-resize:hover,
+.floating-panel-resize:focus-visible { border-color: color-mix(in srgb, var(--brand-control) 55%, var(--glass-edge)); background: var(--glass-card); }
+.route-summary-download {
+  flex: 0 0 auto; align-self: flex-start; min-height: 28px; padding: .2rem .45rem;
+  border: 1px solid var(--glass-edge); border-radius: 7px;
+  background: var(--glass-control); color: var(--brand-control-hover);
+  font-size: .67rem; font-weight: 650; white-space: nowrap;
+}
+.route-summary-download:hover:not(:disabled) { background: var(--glass-card); }
+.route-summary-download:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (min-width: 901px) {
+  .workspace-page > div > .detail-dashboard > .detail-main-grid,
+  .analytics-page > .network-analytics > .network-workspace {
+    --panel-effective-width: min(var(--panel-width, 510px), calc(100% - 360px));
+  }
+  .workspace-page > div > .detail-dashboard > .detail-main-grid > .route-insight-panel,
+  .analytics-page > .network-analytics > .network-workspace > .network-side-panel {
+    width: var(--panel-effective-width);
+  }
+}
+.workspace-page > div > .detail-dashboard > .detail-main-grid > .route-insight-panel,
+.analytics-page > .network-analytics > .network-workspace > .network-side-panel { padding-top: 49px; }
+@media (max-width: 900px) {
+  .floating-panel-toggle { top: 104px; right: 18px; }
+  .floating-panel-resize { display: none; }
+  .detail-main-grid.floating-panel-hidden > .map-wrapper,
+  .network-workspace.floating-panel-hidden > .network-map { min-height: 72dvh; }
+}
+.split-pane .floating-panel-toggle,
+.split-pane .floating-panel-resize { display: none; }

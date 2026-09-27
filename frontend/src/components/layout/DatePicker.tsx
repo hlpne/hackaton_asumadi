@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarBlankIcon, CaretDoubleLeftIcon, CaretDoubleRightIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 
 interface DatePickerProps {
@@ -26,7 +27,9 @@ function dateKey(date: Date): string {
 export function DatePicker({ label, value, onChange, min = "2000-01-01", max = "2098-12-31" }: DatePickerProps) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 330 });
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const selected = parseDate(value);
     return new Date(Date.UTC(selected.getUTCFullYear(), selected.getUTCMonth(), 1));
@@ -36,7 +39,7 @@ export function DatePicker({ label, value, onChange, min = "2000-01-01", max = "
   useEffect(() => {
     if (!open) return;
     const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (!root.current?.contains(event.target as Node) && !popover.current?.contains(event.target as Node)) setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -48,6 +51,30 @@ export function DatePicker({ label, value, onChange, min = "2000-01-01", max = "
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const bounds = root.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const width = Math.min(330, window.innerWidth - 24);
+      const height = popover.current?.offsetHeight ?? 360;
+      const below = bounds.bottom + height + 12 <= window.innerHeight;
+      setPosition({
+        top: below ? bounds.bottom + 7 : Math.max(12, bounds.top - height - 7),
+        left: Math.max(12, Math.min(bounds.left, window.innerWidth - width - 12)),
+        width,
+      });
+    };
+    const frame = requestAnimationFrame(place);
+    window.addEventListener("resize", place);
+    document.addEventListener("scroll", place, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", place);
+      document.removeEventListener("scroll", place, true);
+    };
+  }, [open, visibleMonth]);
 
   const firstWeekday = (visibleMonth.getUTCDay() + 6) % 7;
   const cells = Array.from({ length: 42 }, (_, index) =>
@@ -71,7 +98,8 @@ export function DatePicker({ label, value, onChange, min = "2000-01-01", max = "
       <span>{value ? compactFormatter.format(parseDate(value)) : "Выберите дату"}</span>
       <CalendarBlankIcon size={20} aria-hidden="true" />
     </button>
-    {open && <div className="date-popover" role="dialog" aria-label={`Календарь: ${label}`}>
+    {open && createPortal(<div ref={popover} className="date-popover date-popover--portal" style={position}
+      role="dialog" aria-label={`Календарь: ${label}`}>
       <div className="date-nav">
         <button type="button" aria-label="Предыдущий год" onClick={() => changeMonth(-12)} disabled={monthStart.slice(0, 4) <= min.slice(0, 4)}><CaretDoubleLeftIcon /></button>
         <button type="button" aria-label="Предыдущий месяц" onClick={() => changeMonth(-1)} disabled={monthStart <= min.slice(0, 7) + "-01"}><CaretLeftIcon /></button>
@@ -90,6 +118,6 @@ export function DatePicker({ label, value, onChange, min = "2000-01-01", max = "
             onClick={() => { onChange(day); setOpen(false); }}>{cell.getUTCDate()}</button>;
         })}
       </div>
-    </div>}
+    </div>, document.body)}
   </div>;
 }

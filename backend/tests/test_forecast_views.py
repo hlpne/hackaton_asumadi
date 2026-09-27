@@ -19,6 +19,7 @@ def client():
         ("day", "2026-09-26T08:00:00+03:00"),
         ("month", "2026-09-15T00:00:00+03:00"),
         ("year", "2026-09-01T00:00:00+03:00"),
+        ("year", "2026-09-26T00:00:00+03:00"),
     ],
 )
 def test_map_snapshot_supports_every_horizon(client, horizon, timestamp):
@@ -83,7 +84,7 @@ def test_map_rejects_unknown_route(client):
         {"horizon": "week"},
         {"horizon": "day", "timestamp": "2026-09-26T08:15:30+03:00"},
         {"horizon": "month", "timestamp": "2026-09-26T08:00:00+03:00"},
-        {"horizon": "year", "timestamp": "2026-09-26T00:00:00+03:00"},
+        {"horizon": "year", "timestamp": "2026-09-26T00:01:00+03:00"},
         {"direction_id": 2},
         {"unknown": "field"},
     ],

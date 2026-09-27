@@ -1,5 +1,5 @@
 import json
-from datetime import timezone
+from datetime import timedelta, timezone
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -10,8 +10,8 @@ from app.catalog import MemoryCatalog
 from app.config import Settings
 from app.main import create_app
 from app.predictors.constant import ConstantPredictor
-from app.predictors.mock import MockPredictor
-from app.schemas import ForecastRequest, ForecastResponse, MapForecastResponse, TopOverloadResponse
+from app.predictors.mock import MockPredictor, hour_value
+from app.schemas import ForecastRequest, ForecastResponse, MapForecastResponse, TopOverloadResponse, add_months
 
 ROOT = Path(__file__).resolve().parents[2]
 DAY = {"route_id": "demo-17", "horizon": "day", "from": "2026-09-26T00:00:00+03:00", "to": "2026-09-27T00:00:00+03:00"}
@@ -62,7 +62,10 @@ def test_all_scheme_routes_have_two_directions_and_geometry(client):
     ("day", "2026-09-26", "2026-09-27", 24),
     ("month", "2026-09-01", "2026-10-01", 30),
     ("month", "2028-02-01", "2028-03-01", 29),
+    ("month", "2026-01-31", "2026-03-02", 30),
     ("year", "2026-09-01", "2027-09-01", 12),
+    ("year", "2026-09-26", "2027-09-26", 12),
+    ("year", "2026-01-31", "2027-01-31", 12),
 ])
 def test_horizons_and_calendar(client, horizon, start, end, count):
     query = DAY | {"horizon": horizon, "from": start + "T00:00:00+03:00", "to": end + "T00:00:00+03:00"}
@@ -74,6 +77,26 @@ def test_horizons_and_calendar(client, horizon, start, end, count):
     assert timestamps == sorted(set(timestamps))
     assert timestamps[-1] < ForecastRequest.model_validate(query).end
     assert client.get("/forecast", params=query).json() == response.json()
+
+
+def test_mock_year_monthly_value_matches_hourly_reference():
+    request = ForecastRequest.model_validate(DAY | {
+        "horizon": "year",
+        "resolution": "P1M",
+        "from": "2026-09-27T00:00:00+03:00",
+        "to": "2026-10-27T00:00:00+03:00",
+        "stop_id": "demo-17-s01",
+        "direction_id": 0,
+    })
+    point = MockPredictor().predict(request).points[0]
+    key = f"{request.route_id}/{request.stop_id}/{request.direction_id}"
+    end = add_months(point.timestamp, 1)
+    hourly = []
+    tick = point.timestamp
+    while tick < end:
+        hourly.append(hour_value(key, tick))
+        tick += timedelta(hours=1)
+    assert point.predicted_load == round(sum(hourly) / len(hourly), 2)
 
 
 def test_day_range_accepts_hours_and_minutes(client):

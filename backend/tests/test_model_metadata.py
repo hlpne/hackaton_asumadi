@@ -18,7 +18,7 @@ def test_model_metadata_is_machine_readable_and_truthful():
         "history_to": "2025-10-31",
         "forecast_from": "2025-11-01",
         "forecast_to": "2025-12-31",
-        "routes": 10,
+        "routes": 9,
         "horizon_days": 61,
     }
     assert data["status"] == "validation_pending"

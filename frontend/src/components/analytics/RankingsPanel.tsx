@@ -7,6 +7,7 @@ import { NetworkMap } from "../map/NetworkMap";
 import type { Theme } from "../../theme";
 import { WheelPicker } from "../layout/WheelPicker";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
+import { FloatingPanelControls, FloatingPanelToggle, useFloatingPanel } from "../layout/FloatingPanelControls";
 
 type RankingView = "routes" | "stops";
 
@@ -32,6 +33,7 @@ const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2
 export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selectedStop, networkData, networkBusy, networkError,
   onSelectRoute, onSelectStop, onRetry, theme, controls, onSplit }: RankingsPanelProps) {
   const [view, setView] = useState<RankingView>("routes");
+  const panel = useFloatingPanel();
   const titleId = useId();
   const [rankedRoute, setRankedRoute] = useState("");
   const [rankedStop, setRankedStop] = useState("");
@@ -54,11 +56,14 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
   if (!networkData) return <p className="network-status">Для выбранного периода пока нет данных.</p>;
 
   return <div className="network-analytics" aria-busy={networkBusy}>
-    <div className="network-workspace">
+    <div ref={panel.containerRef} className={`network-workspace${panel.hidden ? " floating-panel-hidden" : ""}`} style={panel.style}>
       <NetworkMap routes={catalogRoutes} snapshot={networkData} theme={theme} onSelectRoute={onSelectRoute}
         selectedRouteId={selectedRouteId} selectedStop={selectedStop} onSplit={onSplit} />
 
+      <FloatingPanelControls panel={panel} />
+
       <aside className="network-side-panel" aria-label="Параметры и зоны внимания сети">
+        <FloatingPanelToggle panel={panel} />
         {controls}
         <div className="network-heading">
           <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ</p><h2>Зоны внимания</h2></div>

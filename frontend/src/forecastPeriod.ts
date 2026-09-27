@@ -19,8 +19,9 @@ export interface ForecastPeriod {
 
 /**
  * Builds an exclusive API range from the date selected in the UI.
- * A month selected on its first day means the calendar month. Any other
- * start date means exactly 30 consecutive days, including the selected day.
+ * A month selected on its first day means the calendar month; otherwise it
+ * spans 30 days. A year selected on January 1 means the calendar year;
+ * otherwise it spans 365 days, including the selected date.
  */
 export function forecastPeriod(date: string, horizon: Horizon): ForecastPeriod {
   const selected = parseUtcDate(date);
@@ -49,13 +50,17 @@ export function forecastPeriod(date: string, horizon: Horizon): ForecastPeriod {
     };
   }
 
-  const start = new Date(Date.UTC(selected.getUTCFullYear(), 0, 1));
-  const end = new Date(Date.UTC(selected.getUTCFullYear() + 1, 0, 1));
+  const calendarYear = selected.getUTCMonth() === 0 && selected.getUTCDate() === 1;
+  const end = calendarYear
+    ? new Date(Date.UTC(selected.getUTCFullYear() + 1, 0, 1))
+    : new Date(selected.getTime() + 365 * DAY_MS);
   return {
-    start: dateKey(start),
+    start: dateKey(selected),
     end: dateKey(end),
     resolution: "P1M",
-    description: "Годовой режим — демонстрационный обзор по 12 месяцам",
+    description: calendarYear
+      ? "Календарный год — с 1 января до начала следующего года"
+      : "365 дней вперёд, включая выбранную дату",
   };
 }
 

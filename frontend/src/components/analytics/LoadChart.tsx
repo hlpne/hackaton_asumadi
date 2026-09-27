@@ -48,8 +48,6 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
   const colors = {
     grid: color("--chart-grid"),
     muted: color("--text-muted"),
-    surface: color("--surface-raised"),
-    border: color("--border-subtle"),
     text: color("--text-primary"),
     interval: color("--chart-interval"),
     predicted: color("--status-critical"),
@@ -76,7 +74,7 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
       )}
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 12, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+          <CartesianGrid strokeDasharray="2 6" stroke={colors.grid} strokeOpacity={0.55} />
           {forecast.horizon === "day" ? <XAxis dataKey="timestamp" type="number" scale="time"
             domain={["dataMin", "dataMax"]} ticks={hourlyTicks} minTickGap={24}
             tickFormatter={(value) => formatHourTick(Number(value))}
@@ -87,9 +85,11 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
             label={{ value: "Индекс загрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
           <Tooltip
             contentStyle={{
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 6,
+              background: theme === "light" ? "rgba(249, 252, 255, .92)" : "rgba(12, 27, 46, .9)",
+              border: theme === "light" ? "1px solid rgba(95, 132, 173, .2)" : "1px solid rgba(169, 197, 229, .17)",
+              borderRadius: 12,
+              boxShadow: "0 12px 28px rgba(0, 5, 16, .2)",
+              backdropFilter: "blur(18px)",
               fontSize: 13,
             }}
             labelStyle={{ color: colors.text, fontWeight: 600 }}

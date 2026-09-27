@@ -17,10 +17,23 @@ test("month selected in the middle uses exactly thirty days", () => {
   assert.equal(period.resolution, "P1D");
 });
 
-test("year mode ignores month and day and uses a full year", () => {
+test("month selected at the end of January still uses thirty days", () => {
+  const period = forecastPeriod("2026-01-31", "month");
+  assert.equal(period.start, "2026-01-31");
+  assert.equal(period.end, "2026-03-02");
+});
+
+test("year selected in the middle uses 365 days from the selected date", () => {
   const period = forecastPeriod("2026-09-26", "year");
-  assert.equal(period.start, "2026-01-01");
-  assert.equal(period.end, "2027-01-01");
+  assert.equal(period.start, "2026-09-26");
+  assert.equal(period.end, "2027-09-26");
+  assert.equal(period.resolution, "P1M");
+});
+
+test("year selected on January 1 uses calendar boundaries, including leap years", () => {
+  const period = forecastPeriod("2028-01-01", "year");
+  assert.equal(period.start, "2028-01-01");
+  assert.equal(period.end, "2029-01-01");
   assert.equal(period.resolution, "P1M");
 });
 

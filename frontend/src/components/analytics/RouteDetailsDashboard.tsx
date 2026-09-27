@@ -7,6 +7,8 @@ import { MapView } from "../map/MapView";
 import { StopsModal } from "./StopsModal";
 import type { Theme } from "../../theme";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
+import { FloatingPanelControls, FloatingPanelToggle, useFloatingPanel } from "../layout/FloatingPanelControls";
+import { downloadForecastSnapshotCsv } from "../../forecastCsv";
 
 const LoadChart = lazy(() => import("./LoadChart").then((module) => ({ default: module.LoadChart })));
 
@@ -38,6 +40,7 @@ const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: 
 export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, startStopId, focusedPoint, selectedStopId, busy,
   forecast, forecastBusy, forecastError, forecastLabel, horizon, onSelectStop, onRetryForecast, theme, controls, onSplit }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
+  const panel = useFloatingPanel();
   const forecastId = useId();
   const summaryId = useId();
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
@@ -50,7 +53,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
   const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
 
   return <div className="detail-dashboard">
-    <div className="detail-main-grid">
+    <div ref={panel.containerRef} className={`detail-main-grid${panel.hidden ? " floating-panel-hidden" : ""}`} style={panel.style}>
       <MapView route={route} snapshot={snapshot} stops={stops} segment={segment} directionId={direction}
         startStopId={startStopId} selectedStopId={selectedStopId} focusedPoint={focusedPoint} busy={busy}
         theme={theme} onSplit={onSplit}
@@ -59,7 +62,10 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
           if (point) onSelectStop(point);
         }} />
 
+      <FloatingPanelControls panel={panel} />
+
       <aside className="route-insight-panel" aria-label="Параметры и аналитика выбранного маршрута">
+      <FloatingPanelToggle panel={panel} />
       {controls}
       <div className="detail-metrics" aria-live="polite">
       <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средний индекс</span><strong>{average === null ? "—" : number.format(average)}</strong>
@@ -93,6 +99,11 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <section className="route-summary" aria-labelledby={summaryId}>
         <div className="route-summary-heading">
           <div className="route-summary-title"><TramIcon weight="bold" aria-hidden="true" /><div><p className="eyebrow">СВОДКА ПО МАРШРУТУ</p><h2 id={summaryId}>{route?.name ?? "Маршрут"}</h2></div></div>
+          <button type="button" className="route-summary-download" disabled={!snapshot || !route || !points.length}
+            title="Скачать расчёт по остановкам текущего направления"
+            onClick={() => { if (snapshot && route) downloadForecastSnapshotCsv(snapshot, route.id, direction); }}>
+            ↓ Скачать CSV
+          </button>
         </div>
         <div className="route-summary-stats">
           <div><strong>{stops.length || "—"}</strong><span>остановок</span></div>
