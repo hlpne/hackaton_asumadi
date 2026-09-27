@@ -20,21 +20,40 @@ function row(point: MapForecastPoint, snapshot: MapForecastResponse): Array<stri
   ];
 }
 
-export function forecastSnapshotCsv(snapshot: MapForecastResponse, routeId: string, directionId: 0 | 1): string {
-  const points = snapshot.points.filter((point) => point.route_id === routeId && point.direction_id === directionId)
-    .sort((a, b) => a.sequence - b.sequence);
+function toCsv(points: MapForecastPoint[], snapshot: MapForecastResponse): string {
   return `\uFEFF${[columns.join(";"), ...points.map((point) => row(point, snapshot).map(cell).join(";"))].join("\r\n")}\r\n`;
 }
 
-export function downloadForecastSnapshotCsv(snapshot: MapForecastResponse, routeId: string, directionId: 0 | 1): void {
-  const csv = forecastSnapshotCsv(snapshot, routeId, directionId);
+export function forecastSnapshotCsv(snapshot: MapForecastResponse, routeId: string, directionId: 0 | 1): string {
+  const points = snapshot.points.filter((point) => point.route_id === routeId && point.direction_id === directionId)
+    .sort((a, b) => a.sequence - b.sequence);
+  return toCsv(points, snapshot);
+}
+
+/** Every stop of every route in the snapshot, grouped by route and direction. */
+export function networkSnapshotCsv(snapshot: MapForecastResponse): string {
+  const points = [...snapshot.points].sort((a, b) => a.route_id.localeCompare(b.route_id, "ru", { numeric: true }) ||
+    a.direction_id - b.direction_id || a.sequence - b.sequence);
+  return toCsv(points, snapshot);
+}
+
+function download(csv: string, fileName: string): void {
   const file = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(file);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `tram-${routeId.replace(/[^a-z0-9-]/gi, "")}-${snapshot.timestamp.slice(0, 10)}-direction-${directionId + 1}.csv`;
+  link.download = fileName;
   document.body.append(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadForecastSnapshotCsv(snapshot: MapForecastResponse, routeId: string, directionId: 0 | 1): void {
+  download(forecastSnapshotCsv(snapshot, routeId, directionId),
+    `tram-${routeId.replace(/[^a-z0-9-]/gi, "")}-${snapshot.timestamp.slice(0, 10)}-direction-${directionId + 1}.csv`);
+}
+
+export function downloadNetworkSnapshotCsv(snapshot: MapForecastResponse): void {
+  download(networkSnapshotCsv(snapshot), `tram-network-${snapshot.timestamp.slice(0, 10)}.csv`);
 }

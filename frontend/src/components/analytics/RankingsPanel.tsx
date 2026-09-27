@@ -8,6 +8,7 @@ import type { Theme } from "../../theme";
 import { WheelPicker } from "../layout/WheelPicker";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
 import { FloatingPanelControls, useFloatingPanel } from "../layout/FloatingPanelControls";
+import { downloadNetworkSnapshotCsv } from "../../forecastCsv";
 
 type RankingView = "routes" | "stops";
 
@@ -73,7 +74,7 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
           <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
           <article><div className="network-metric-heading"><MapPinIcon weight="fill" aria-hidden="true" /><span>Остановок</span></div><strong>{networkData.points.length}</strong></article>
           <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний индекс</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
-          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Лидер</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
+          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Самый загруженный</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
         </div>
 
         <section className="top-panel rankings-panel" aria-labelledby={titleId}>
@@ -96,14 +97,10 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
                 : <WheelPicker inline label="Рейтинг остановок" value={stopChoice ? stopKey(stopChoice) : ""} onChange={setRankedStop}
                   options={stops.map((point) => ({ value: stopKey(point), label: `${point.rank}. ${point.stop_name}`,
                     meta: valueFormatter.format(point.predicted_load) }))} />}
-              <div className="wheel-preview"><span>{view === "routes" ? `Место ${routeChoice?.rank ?? "—"} · ${routeChoice?.stopCount ?? 0} остановок`
-                : `Место ${stopChoice?.rank ?? "—"} · направление ${(stopChoice?.direction_id ?? 0) + 1}`}</span>
-                <strong>{view === "routes" ? routeChoice?.name.replace(" · демопрогноз", "") : stopChoice?.stop_name}</strong>
-                <small>Индекс {valueFormatter.format(view === "routes" ? routeChoice?.averageLoad ?? 0 : stopChoice?.predicted_load ?? 0)}</small>
-                <button type="button" onClick={() => view === "routes" ? routeChoice && onSelectRoute(routeChoice.id) : stopChoice && onSelectStop(stopChoice)}>
-                  {view === "routes" ? "Открыть маршрут" : "Показать на карте"}</button>
-              </div>
             </div>}
+            <button type="button" className="network-download" disabled={!networkData.points.length}
+              title="CSV с прогнозом по всем остановкам всех маршрутов за выбранный срез"
+              onClick={() => downloadNetworkSnapshotCsv(networkData)}>↓ Скачать сводку по всем маршрутам</button>
           </div>
           <p className="top-panel-note">{networkData.is_mock ? "Демонстрационные данные; индекс не равен заполненности салона." : "Порог перегрузки не задан."}
             {" "}Источник: /forecast/map · {networkData.model_version}.</p>

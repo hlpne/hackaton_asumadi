@@ -808,7 +808,6 @@ body[data-page="details"] { overflow: hidden; }
 .route-insight-panel .route-summary { margin-top: .6rem; }
 .route-summary-title > svg,
 .map-wrapper:not(.network-map) .map-heading h2 svg { color: var(--text-primary); }
-.network-metrics article:first-child .network-metric-heading svg { color: var(--text-primary); }
 
 .map-attention-badge { position: absolute; z-index: 9; left: 50%; bottom: 14px; display: flex; align-items: center; gap: .55rem; min-height: 48px; max-width: min(360px, calc(100% - 28px)); padding: .52rem .8rem; transform: translateX(-50%); border: 1px solid color-mix(in srgb, var(--status-attention) 60%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--status-attention-surface) 88%, transparent); color: var(--status-attention); box-shadow: 0 12px 30px rgba(0, 0, 0, .32); backdrop-filter: blur(18px) saturate(140%); text-align: left; }
 .map-attention-badge:hover:not(:disabled) { background: color-mix(in srgb, var(--status-attention-surface) 76%, var(--surface-hover)); color: var(--status-attention); }

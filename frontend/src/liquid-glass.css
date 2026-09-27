@@ -428,3 +428,45 @@ button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 25
 .network-map-fallback .network-route:hover .network-route-line,
 .network-map-fallback .network-route:focus-visible .network-route-line { filter: brightness(1.25) drop-shadow(0 0 3px currentColor); }
 .network-map-fallback .network-route:focus-visible .network-route-casing { stroke: var(--focus-ring); }
+
+
+/* One load legend for Monitoring and Network: centred in the part of the map not covered by the panel. */
+.detail-main-grid > .map-wrapper .map-legend,
+.network-workspace > .network-map .map-legend {
+  position: absolute; z-index: 8; bottom: 14px; right: auto;
+  left: calc((100% - var(--panel-effective-width, 0px) - 14px) / 2);
+  width: max-content; max-width: calc(100% - var(--panel-effective-width, 0px) - 70px);
+  transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem 1rem;
+  margin: 0; padding: .6rem 1rem;
+  border: 1px solid var(--glass-edge); border-radius: 999px;
+  background: var(--glass-sheen), var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 12px 32px rgba(0, 5, 16, .26);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  font-size: .72rem;
+}
+.detail-main-grid > .map-wrapper .map-legend span,
+.network-workspace > .network-map .map-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.detail-main-grid > .map-wrapper .map-legend i,
+.network-workspace > .network-map .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.floating-panel-hidden > .network-map .map-legend { display: none; }
+/* In split windows the panel is its own column, so the legend centres on the whole map. */
+.split-pane .detail-main-grid > .map-wrapper .map-legend,
+.split-pane .network-workspace > .network-map .map-legend {
+  left: 50%; bottom: 10px; max-width: calc(100% - 20px); padding: .4rem .6rem; gap: .35rem .65rem; font-size: .58rem;
+}
+@media (max-width: 680px) {
+  .detail-main-grid > .map-wrapper .map-legend,
+  .network-workspace > .network-map .map-legend { bottom: 12px; max-width: calc(100% - 24px); border-radius: 14px; }
+}
+
+/* Network-wide CSV export under the ranking; it is not tied to the highlighted route or stop. */
+.network-side-panel .network-download {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  width: 100%; min-height: 40px; margin-top: .8rem; border-radius: 11px;
+  background: var(--brand-control); color: var(--text-on-strong);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .16), 0 8px 20px rgba(47, 114, 223, .22);
+  font-size: .82rem;
+}
+.network-side-panel .network-download:hover:not(:disabled) { background: var(--brand-control-hover); }

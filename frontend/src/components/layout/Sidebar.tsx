@@ -68,17 +68,16 @@ export function Sidebar({
     </div>
 
     <div className="filters-route-fields">
-      <WheelPicker label="Маршрут" value={routeId} options={routeOptions} onChange={onRouteChange}
-        disabled={loadingCatalog || !routes.length} placeholder={loadingCatalog ? "Загрузка…" : "Нет маршрутов"} />
+      {/* The network view covers every route, so it has no route or stop filter. */}
+      {mode === "details" && <WheelPicker label="Маршрут" value={routeId} options={routeOptions} onChange={onRouteChange}
+        disabled={loadingCatalog || !routes.length} placeholder={loadingCatalog ? "Загрузка…" : "Нет маршрутов"} />}
       <PeriodControls horizon={horizon} date={date} onHorizonChange={onHorizonChange} onDateChange={onDateChange} compact />
-      {mode === "details" ? <div className="filters-stop-grid">
+      {mode === "details" && <div className="filters-stop-grid">
         <WheelPicker label="От остановки" value={fromStopId} options={stopOptions} onChange={onFromStopChange}
           disabled={loadingStops || !routeId} placeholder={loadingStops ? "Загрузка…" : "Не выбрана"} />
         <WheelPicker label="До остановки" value={toStopId} options={destinationOptions} onChange={onToStopChange}
           disabled={loadingStops || !fromStop} placeholder="Сначала выберите начало" />
-      </div> : <WheelPicker label="Остановка на карте" value={fromStopId} options={stopOptions}
-        onChange={onFromStopChange} disabled={loadingStops || !routeId}
-        placeholder={loadingStops ? "Загрузка…" : "Не выбрана"} />}
+      </div>}
     </div>
   </section>;
 }

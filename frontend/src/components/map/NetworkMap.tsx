@@ -6,6 +6,7 @@ import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 
 import { buildNetworkLines } from "./networkMapLines";
 import { buildSchematic, VIEW_HEIGHT, VIEW_WIDTH, type SchematicRun } from "./networkSchematic";
 import type { Theme } from "../../theme";
+import { loadColors } from "../../loadLevel";
 import { findRouteIntersections, type RouteIntersection } from "./routeIntersections";
 import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
 
@@ -192,7 +193,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   return <section className="map-wrapper network-map" aria-labelledby={titleId}>
     <div className="map-heading"><div>
       <h2 id={titleId}><MapTrifoldIcon weight="bold" aria-hidden="true" />Карта всей трамвайной сети</h2>
-      <p>Выберите маршрут и остановку справа. Нажмите линию или маршрут в рейтинге, чтобы открыть подробности.</p>
+      <p>Цвет линии — уровень загрузки. Нажмите линию, чтобы открыть маршрут в мониторинге.</p>
     </div></div>
     <div className="map-stage">
       {showFallback ? <div ref={container} className="map-container network-map-fallback">
@@ -232,6 +233,11 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
           {routeById.get(id)?.name.replace(" · демопрогноз", "") ?? id}
         </button>)}</div>
       </div>}
+      <div className="map-legend" aria-label="Уровни загрузки">
+        <span><i style={{ background: loadColors.low }} /> Низкая{snapshot.value_unit === "demo_index" ? " (< 35)" : ""}</span>
+        <span><i style={{ background: loadColors.medium }} /> Средняя{snapshot.value_unit === "demo_index" ? " (35–54)" : ""}</span>
+        <span><i style={{ background: loadColors.high }} /> Высокая{snapshot.value_unit === "demo_index" ? " (≥ 55)" : ""}</span>
+      </div>
       <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
       {onSplit && <EdgeSplitHandles onSplit={onSplit} />}
     </div>

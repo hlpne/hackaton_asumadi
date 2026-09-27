@@ -375,14 +375,15 @@ export default function App() {
         {page === "analytics" && networkSplitCount > 1 && (routes.length
           ? <SplitWorkspace mode="analytics" routes={routes} theme={theme}
             initialCount={networkSplitCount as 2 | 3 | 4} initialEdge={networkSplitEdge}
-            initialConfig={{ routeId, horizon, date, directionId, stopId: fromStopId }}
+            initialConfig={{ routeId, horizon, date, directionId, stopId: "" }}
             onOpenDetails={closeNetworkSplit} onClose={closeNetworkSplit} />
           : <p className="network-status" role="status">Загружаем сеть для Split View…</p>)}
 
         {page === "analytics" && networkSplitCount === 1 && <RankingsPanel
           routes={routes}
           selectedRouteId={networkRouteFocused ? routeId : ""}
-          selectedStop={networkForecast?.points.find((point) => point.route_id === routeId && point.stop_id === fromStopId) ?? null}
+          // The network view has no stop filter; a stop chosen in Monitoring must not carry over.
+          selectedStop={null}
           networkData={networkForecast}
           networkBusy={networkBusy}
           networkError={networkError}

@@ -124,7 +124,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, settledConfig.stopId,
     selected?.stop_id, stops, retry]);
 
-  const heading = <div className="split-pane-heading"><div><span>ОКНО 0{index + 1}</span><strong>{route?.name.replace(" · демопрогноз", "") ?? "Маршрут"}</strong></div>
+  const heading = <div className="split-pane-heading"><div><span>ОКНО 0{index + 1}</span><strong>{mode === "analytics" ? "Вся сеть" : route?.name.replace(" · демопрогноз", "") ?? "Маршрут"}</strong></div>
     <div className="split-pane-actions"><button type="button" title="Открыть выбранное окно" aria-label="Открыть выбранное окно"
       onClick={() => onOpenDetails(config)}><ArrowsOutIcon weight="bold" /></button>
       <button type="button" title="Закрыть окно" aria-label={`Закрыть окно ${index + 1}`} onClick={onRemove}><XIcon weight="bold" /></button></div></div>;
