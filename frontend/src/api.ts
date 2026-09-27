@@ -2,6 +2,7 @@ import type {
   ForecastRequest,
   ForecastResponse,
   MapForecastResponse,
+  ModelMetadata,
   Route,
   RouteGeometry,
   RouteStop,
@@ -70,4 +71,8 @@ export function getTopOverload(
     `/forecast/top-overload?${queryString(request as Record<string, unknown>)}`,
     signal
   );
+}
+
+export function getModelMetadata(signal?: AbortSignal): Promise<ModelMetadata> {
+  return read<ModelMetadata>("/model/metadata", signal);
 }

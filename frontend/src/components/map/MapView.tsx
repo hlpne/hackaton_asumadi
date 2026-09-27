@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TramIcon } from "@phosphor-icons/react";
+import { TramIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { getRouteGeometry } from "../../api";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry, RouteStop } from "../../types";
 import { YandexMap } from "./YandexMap";
+import { RouteMapFallback } from "./RouteMapFallback";
 import { clipRouteLines, type RouteSegment } from "../../routeSegment";
-import { loadColor, loadColors } from "../../loadLevel";
+import { loadColor, loadColors, loadLevel } from "../../loadLevel";
+import type { Theme } from "../../theme";
+import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
 
 interface MapViewProps {
   route?: Route;
@@ -17,9 +20,25 @@ interface MapViewProps {
   focusedPoint: MapForecastPoint | null;
   busy: boolean;
   onStopSelect: (stopId: string) => void;
+  theme: Theme;
+  onSplit?: (edge: SplitEdge) => void;
 }
 
-export function MapView({ route, snapshot, stops, segment, directionId, startStopId, selectedStopId, focusedPoint, busy, onStopSelect }: MapViewProps) {
+const routeGeometryCache = new Map<string, Promise<RouteGeometry>>();
+
+function cachedGeometry(routeId: string, directionId: 0 | 1): Promise<RouteGeometry> {
+  const key = `${routeId}/${directionId}`;
+  const cached = routeGeometryCache.get(key);
+  if (cached) return cached;
+  const request = getRouteGeometry(routeId, directionId).catch((error) => {
+    routeGeometryCache.delete(key);
+    throw error;
+  });
+  routeGeometryCache.set(key, request);
+  return request;
+}
+
+export function MapView({ route, snapshot, stops, segment, directionId, startStopId, selectedStopId, focusedPoint, busy, onStopSelect, theme, onSplit }: MapViewProps) {
   const [geometry, setGeometry] = useState<RouteGeometry | null>(null);
   const [geometryError, setGeometryError] = useState("");
   const [yandexError, setYandexError] = useState("");
@@ -30,13 +49,13 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
     setGeometry(null);
     setGeometryError("");
     if (!route) return;
-    const controller = new AbortController();
-    getRouteGeometry(route.id, focusedPoint?.direction_id ?? segment?.directionId ?? directionId, controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setGeometry(data); })
+    let cancelled = false;
+    cachedGeometry(route.id, focusedPoint?.direction_id ?? segment?.directionId ?? directionId)
+      .then((data) => { if (!cancelled) setGeometry(data); })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setGeometryError(error instanceof Error ? error.message : "Не удалось загрузить геометрию");
+        if (!cancelled) setGeometryError(error instanceof Error ? error.message : "Не удалось загрузить геометрию");
       });
-    return () => controller.abort();
+    return () => { cancelled = true; };
   }, [route, segment?.directionId, focusedPoint?.direction_id, directionId]);
 
   const displayGeometry = useMemo(() => {
@@ -61,6 +80,9 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
     ? forward.filter((point) => point.sequence >= segment.from.sequence && point.sequence <= segment.to.sequence)
     : forward.length ? forward : points).slice().sort((a, b) => a.sequence - b.sequence);
   const markers = [...new Map(ordered.map((point) => [point.stop_id, point])).values()];
+  const peakPoint = markers.reduce<MapForecastPoint | null>((peak, point) =>
+    !peak || point.predicted_load > peak.predicted_load ? point : peak, null);
+  const showAttention = Boolean(snapshot && peakPoint && loadLevel(peakPoint.predicted_load, snapshot) === "high");
   return (
     <section className="map-wrapper" aria-label="Карта маршрута и загрузки">
       <div className="map-heading">
@@ -82,10 +104,17 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
         colorForValue={loadColor}
         onStopSelect={onStopSelect}
         onError={onYandexError}
-      /> : <div className="map-container map-unavailable" role="alert">
-        {yandexError || "Для карты не задан VITE_YANDEX_MAPS_API_KEY."} Подложка OpenStreetMap отключена.
-      </div>}
-      {yandexKey && !yandexError && <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>}
+        theme={theme}
+      /> : <RouteMapFallback geometry={displayGeometry} route={route} snapshot={snapshot}
+        markers={markers} selectedStopId={selectedStopId} startStopId={startStopId}
+        message={yandexError || "Подложка Яндекс Карт отключена: API key не задан."}
+        onStopSelect={onStopSelect} />}
+      <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
+      {showAttention && peakPoint && <button type="button" className="map-attention-badge"
+        onClick={() => onStopSelect(peakPoint.stop_id)} title="Показать остановку на карте">
+        <WarningCircleIcon weight="fill" aria-hidden="true" />
+        <span><strong>Высокая загрузка</strong><small>{peakPoint.stop_name} · {peakPoint.predicted_load.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}</small></span>
+      </button>}
       </div>
       {geometryError && <p className="map-empty" role="alert">Не удалось получить линии маршрута: {geometryError}</p>}
       {segment && geometry && displayGeometry?.lines.length === 0 &&
@@ -99,6 +128,7 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
         <span><i style={{ background: loadColors.medium }} /> Средняя{snapshot?.value_unit === "demo_index" ? " (35–54)" : ""}</span>
         <span><i style={{ background: loadColors.high }} /> Высокая{snapshot?.value_unit === "demo_index" ? " (≥ 55)" : ""}</span>
       </div>
+      {onSplit && <EdgeSplitHandles onSplit={onSplit} />}
     </section>
   );
 }

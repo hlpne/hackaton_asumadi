@@ -14,6 +14,7 @@ from math import asin, cos, radians, sin, sqrt
 import os
 from pathlib import Path
 import re
+from time import sleep
 from typing import Iterator
 
 import psycopg
@@ -143,6 +144,21 @@ def connection_parameters() -> dict:
     }
 
 
+def connect_with_retry(*, autocommit: bool = False, attempts: int = 30):
+    """Wait through the short PostgreSQL restart after first-volume initialization."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return psycopg.connect(**connection_parameters(), autocommit=autocommit)
+        except psycopg.OperationalError:
+            if attempt == attempts:
+                raise
+            print(
+                f"Database is not ready; retrying connection ({attempt}/{attempts})",
+                flush=True,
+            )
+            sleep(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-dir", type=Path)
@@ -170,7 +186,7 @@ def main() -> None:
 
     # Docker volumes outlive images, so always apply the idempotent migration
     # before deciding whether the bundled schedule still needs importing.
-    with psycopg.connect(**connection_parameters(), autocommit=True) as migration_connection:
+    with connect_with_retry(autocommit=True) as migration_connection:
         migration_sql = "\n".join(
             line for line in args.migration.read_text(encoding="utf-8").splitlines()
             if line.strip() not in {"BEGIN;", "COMMIT;"}
@@ -237,7 +253,7 @@ def main() -> None:
     used_by_route: dict[str, set[int]] = {route_id: set() for route_id in route_codes.values()}
     imported = 0
     scanned = 0
-    with psycopg.connect(**connection_parameters()) as connection:
+    with connect_with_retry() as connection:
         with connection.cursor() as cursor:
             cursor.execute("SET statement_timeout = 0")
             cursor.execute(

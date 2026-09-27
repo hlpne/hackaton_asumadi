@@ -299,6 +299,78 @@
         }
       }
     },
+    "/model/metadata": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Model Card",
+        "description": "Validated model-card data consumed by the frontend; no metrics are hardcoded in React.",
+        "operationId": "model_card_model_metadata_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelMetadataResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/routes/{route_id}/stops": {
       "get": {
         "tags": [
@@ -1593,6 +1665,271 @@
           "points"
         ],
         "title": "MapForecastResponse"
+      },
+      "ModelCoverage": {
+        "properties": {
+          "history_from": {
+            "type": "string",
+            "title": "History From"
+          },
+          "history_to": {
+            "type": "string",
+            "title": "History To"
+          },
+          "forecast_from": {
+            "type": "string",
+            "title": "Forecast From"
+          },
+          "forecast_to": {
+            "type": "string",
+            "title": "Forecast To"
+          },
+          "routes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Routes"
+          },
+          "horizon_days": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Horizon Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "history_from",
+          "history_to",
+          "forecast_from",
+          "forecast_to",
+          "routes",
+          "horizon_days"
+        ],
+        "title": "ModelCoverage"
+      },
+      "ModelDataSource": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "ModelDataSource"
+      },
+      "ModelMetadataResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "validated",
+              "validation_pending"
+            ],
+            "title": "Status"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "built_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Built At"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "value_unit": {
+            "type": "string",
+            "title": "Value Unit"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/ModelCoverage"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ModelValidation"
+          },
+          "feature_families": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Feature Families"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ModelDataSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "model_version",
+          "target",
+          "value_unit",
+          "coverage",
+          "validation",
+          "feature_families",
+          "limitations",
+          "sources"
+        ],
+        "title": "ModelMetadataResponse"
+      },
+      "ModelMetricSet": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "wape": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wape"
+          },
+          "mae": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae"
+          },
+          "bias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ModelMetricSet"
+      },
+      "ModelMetricSlice": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "wape": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Wape"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "wape"
+        ],
+        "title": "ModelMetricSlice"
+      },
+      "ModelValidation": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "leakage_control": {
+            "type": "string",
+            "title": "Leakage Control"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/ModelMetricSet"
+          },
+          "final": {
+            "$ref": "#/components/schemas/ModelMetricSet"
+          },
+          "folds": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetricSlice"
+            },
+            "type": "array",
+            "title": "Folds"
+          },
+          "horizon_buckets": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetricSlice"
+            },
+            "type": "array",
+            "title": "Horizon Buckets"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "method",
+          "leakage_control",
+          "baseline",
+          "final",
+          "folds",
+          "horizon_buckets"
+        ],
+        "title": "ModelValidation"
       },
       "OverloadItem": {
         "properties": {

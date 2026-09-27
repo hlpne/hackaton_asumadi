@@ -16,6 +16,9 @@ coverage/
 .env.*
 !.env.example
 data/
+!backend/data/
+backend/data/*
+!backend/data/model_metadata.json
 *.parquet
 *.log
 *.bundle

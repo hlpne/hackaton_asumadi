@@ -7,7 +7,13 @@ import { HomePage } from "./components/layout/HomePage";
 import { Sidebar } from "./components/layout/Sidebar";
 import { RankingsPanel } from "./components/analytics/RankingsPanel";
 import { RouteDetailsDashboard } from "./components/analytics/RouteDetailsDashboard";
+import { ModelPage } from "./components/model/ModelPage";
 import { buildRouteSegment } from "./routeSegment";
+import { applyTheme, initialTheme } from "./theme";
+import { periodRequest, snapshotTimestamp } from "./forecastPeriod";
+import { supportedNetworkSnapshot, supportedRoutes } from "./supportedRoutes";
+import { SplitWorkspace, type SplitPaneConfig } from "./components/map/SplitWorkspace";
+import type { SplitEdge } from "./components/map/EdgeSplitHandles";
 
 function currentMoscowDate(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -18,44 +24,6 @@ function currentMoscowDate(): string {
   }).formatToParts(new Date());
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}`;
-}
-
-function nextMonth(date: string): string {
-  const [year, month, day] = date.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(day, lastDay))).toISOString().slice(0, 10);
-}
-
-function validMonthPeriod(from: string, to: string): boolean {
-  return Boolean(from && to && from < to && to <= nextMonth(from));
-}
-
-function snapshotTimestamp(
-  date: string,
-  horizon: Horizon,
-  dateFrom: string,
-) : string {
-  if (horizon === "day") {
-    // The time selector is hidden; the map and rankings use a stable daytime snapshot.
-    return `${date}T12:00:00+03:00`;
-  }
-  if (horizon === "month") {
-    return `${dateFrom}T00:00:00+03:00`;
-  }
-  const [year, month] = date.split("-").map(Number);
-  const start = new Date(Date.UTC(year, month - 1, 1));
-  return `${start.toISOString().slice(0, 13)}:00:00+03:00`;
-}
-
-function forecastRange(date: string, horizon: Horizon, dateFrom: string, dateTo: string) {
-  const from = horizon === "day" ? `${date}T00:00:00+03:00` : snapshotTimestamp(date, horizon, dateFrom);
-  if (horizon === "day") {
-    return { from, to: new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString(), resolution: "schedule" as const };
-  }
-  if (horizon === "month") return { from, to: `${dateTo}T00:00:00+03:00`, resolution: "P1D" as const };
-  const [year, month] = date.split("-").map(Number);
-  const end = new Date(Date.UTC(year + 1, month - 1, 1)).toISOString().slice(0, 10);
-  return { from, to: `${end}T00:00:00+03:00`, resolution: "P1M" as const };
 }
 
 function compareRoutes(a: Route, b: Route): number {
@@ -77,24 +45,46 @@ function failureMessage(failure: unknown): string {
 }
 
 function pageFromHash(): Page {
-  const hash = window.location.hash.slice(1);
-  return hash === "details" || hash === "analytics" ? hash : "home";
+  const hash = window.location.hash.slice(1).split("?")[0];
+  if (hash === "home" || hash === "analytics" || hash === "model") return hash;
+  return "details";
+}
+
+function queryValue(name: string): string {
+  return new URLSearchParams(window.location.search).get(name) ?? "";
+}
+
+function initialHorizon(): Horizon {
+  const value = queryValue("horizon");
+  return value === "month" || value === "year" ? value : "day";
+}
+
+function initialDirection(): 0 | 1 {
+  return queryValue("direction") === "1" ? 1 : 0;
+}
+
+function initialSplitCount(key = "split"): 1 | 2 | 3 | 4 {
+  const value = Number(queryValue(key));
+  return value === 2 || value === 3 || value === 4 ? value : 1;
 }
 
 export default function App() {
   const [page, setPage] = useState<Page>(pageFromHash);
+  const [theme, setTheme] = useState(initialTheme);
   const [scrollToMap, setScrollToMap] = useState(false);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [stops, setStops] = useState<RouteStop[]>([]);
-  const [routeId, setRouteId] = useState("");
-  const [directionId, setDirectionId] = useState<0 | 1>(0);
-  const [fromStopId, setFromStopId] = useState("");
-  const [toStopId, setToStopId] = useState("");
-  const [forecastStopId, setForecastStopId] = useState("");
-  const [horizon, setHorizon] = useState<Horizon>("day");
-  const [date, setDate] = useState(currentMoscowDate);
-  const [dateFrom, setDateFrom] = useState(() => `${currentMoscowDate().slice(0, 7)}-01`);
-  const [dateTo, setDateTo] = useState(() => nextMonth(`${currentMoscowDate().slice(0, 7)}-01`));
+  const [routeId, setRouteId] = useState(() => queryValue("route"));
+  const [directionId, setDirectionId] = useState<0 | 1>(initialDirection);
+  const [fromStopId, setFromStopId] = useState(() => queryValue("from"));
+  const [toStopId, setToStopId] = useState(() => queryValue("to"));
+  const [forecastStopId, setForecastStopId] = useState(() => queryValue("stop"));
+  const [horizon, setHorizon] = useState<Horizon>(initialHorizon);
+  const [date, setDate] = useState(() => queryValue("date") || queryValue("dateFrom") || currentMoscowDate());
+  const [splitCount, setSplitCount] = useState<1 | 2 | 3 | 4>(initialSplitCount);
+  const [splitEdge, setSplitEdge] = useState<SplitEdge>("right");
+  const [networkSplitCount, setNetworkSplitCount] = useState<1 | 2 | 3 | 4>(() => initialSplitCount("networkSplit"));
+  const [networkSplitEdge, setNetworkSplitEdge] = useState<SplitEdge>("right");
   const [retry, setRetry] = useState(0);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
   const [routeForecast, setRouteForecast] = useState<ForecastResponse | null>(null);
@@ -103,6 +93,7 @@ export default function App() {
   const [networkForecast, setNetworkForecast] = useState<MapForecastResponse | null>(null);
   const [networkError, setNetworkError] = useState("");
   const [networkBusy, setNetworkBusy] = useState(false);
+  const [networkRouteFocused, setNetworkRouteFocused] = useState(false);
   const [focusedPoint, setFocusedPoint] = useState<MapForecastPoint | null>(null);
   const mapAnchor = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
@@ -112,11 +103,40 @@ export default function App() {
   const fromStop = stops.find((stop) => stop.id === fromStopId);
   const segment = buildRouteSegment(stops, fromStopId, toStopId);
 
+  function closeSplit(config: SplitPaneConfig) {
+    setRouteId(config.routeId);
+    setHorizon(config.horizon);
+    setDate(config.date);
+    setDirectionId(config.directionId);
+    setFromStopId("");
+    setToStopId("");
+    setForecastStopId("");
+    setFocusedPoint(null);
+    setSplitCount(1);
+    const url = new URL(window.location.href);
+    ["split", "splitRoutes", "splitDates", "splitHorizons", "splitDirections", "splitStops", "splitLayout"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState(null, "", url);
+  }
+
+  function closeNetworkSplit(config: SplitPaneConfig) {
+    setRouteId(config.routeId);
+    setHorizon(config.horizon);
+    setDate(config.date);
+    setFromStopId(config.stopId ?? "");
+    setNetworkRouteFocused(Boolean(config.routeId));
+    setNetworkSplitCount(1);
+    const url = new URL(window.location.href);
+    ["networkSplit", "networkSplitRoutes", "networkSplitDates", "networkSplitHorizons", "networkSplitDirections", "networkSplitStops", "networkSplitLayout"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState(null, "", url);
+  }
+
   function navigate(nextPage: Page) {
     setPage(nextPage);
     if (window.location.hash !== `#${nextPage}`) window.location.hash = nextPage;
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  useEffect(() => applyTheme(theme), [theme]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -127,7 +147,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = `${page === "home" ? "Главная" : page === "details" ? "Детализация" : "Аналитика"} · Трамвай / Прогноз`;
+    const label = page === "home" ? "Главное" : page === "details" ? "Мониторинг" : page === "analytics" ? "Сеть" : "О модели";
+    document.title = `${label} · Трамвай / Прогноз`;
+    document.body.dataset.page = page;
     if (page === "details" && scrollToMap) {
       mapAnchor.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       setScrollToMap(false);
@@ -135,12 +157,27 @@ export default function App() {
   }, [page, scrollToMap]);
 
   useEffect(() => {
+    if (!routeId || page === "home" || page === "model") return;
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    params.set("route", routeId);
+    params.set("direction", String(directionId));
+    params.set("horizon", horizon);
+    params.set("date", date);
+    params.delete("dateFrom");
+    params.delete("dateTo");
+    const optional = { from: fromStopId, to: toStopId, stop: forecastStopId };
+    Object.entries(optional).forEach(([key, value]) => value ? params.set(key, value) : params.delete(key));
+    window.history.replaceState(null, "", `${url.pathname}?${params.toString()}#${page}`);
+  }, [page, routeId, directionId, horizon, date, fromStopId, toStopId, forecastStopId]);
+
+  useEffect(() => {
     const controller = new AbortController();
     getRoutes(controller.signal)
       .then((items) => {
-        const sorted = [...items].sort(compareRoutes);
+        const sorted = supportedRoutes(items).sort(compareRoutes);
         setRoutes(sorted);
-        setRouteId(sorted[0]?.id ?? "");
+        setRouteId((current) => sorted.some((route) => route.id === current) ? current : (sorted[0]?.id ?? ""));
         if (!items.length) setError("Справочник маршрутов пуст.");
       })
       .catch((failure: Error) => {
@@ -154,12 +191,17 @@ export default function App() {
 
   useEffect(() => {
     setStops([]);
-    if (!routeId) return;
+    if ((page === "details" && splitCount > 1) || !routeId) return;
     const controller = new AbortController();
     setLoadingStops(true);
     getStops(routeId, controller.signal)
       .then((items) => {
-        if (!controller.signal.aborted) setStops(items);
+        if (!controller.signal.aborted) {
+          setStops(items);
+          setFromStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+          setToStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+          setForecastStopId((current) => items.some((stop) => stop.id === current) ? current : "");
+        }
       })
       .catch((failure: unknown) => {
         if (!controller.signal.aborted) setError(failureMessage(failure));
@@ -168,17 +210,17 @@ export default function App() {
         if (!controller.signal.aborted) setLoadingStops(false);
       });
     return () => controller.abort();
-  }, [routeId]);
+  }, [routeId, splitCount, page]);
 
   useEffect(() => {
-    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
+    if (splitCount > 1 || !routeId || !date) {
       setMapForecast(null);
       setBusy(false);
       setError("");
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon, dateFrom);
+    const timestamp = snapshotTimestamp(date, horizon);
     setBusy(true);
     setError("");
     setMapForecast(null);
@@ -188,18 +230,18 @@ export default function App() {
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
 
     return () => controller.abort();
-  }, [routeId, horizon, date, dateFrom, dateTo, retry]);
+  }, [routeId, horizon, date, retry, splitCount]);
 
   useEffect(() => {
-    if (page !== "details") return;
-    if (!routeId || !date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
+    if (page !== "details" || splitCount > 1) return;
+    if (!routeId || !date) {
       setRouteForecast(null);
       setForecastError("");
       setForecastBusy(false);
       return;
     }
     const controller = new AbortController();
-    const range = forecastRange(date, horizon, dateFrom, dateTo);
+    const range = periodRequest(date, horizon);
     const direction = focusedPoint?.direction_id ?? segment?.directionId ?? fromStop?.direction_id ?? directionId;
     const directionStartStop = stops.filter((stop) => stop.direction_id === direction)
       .sort((a, b) => a.sequence - b.sequence)[0];
@@ -213,80 +255,45 @@ export default function App() {
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [page, routeId, horizon, date, dateFrom, dateTo, directionId,
+  }, [page, splitCount, routeId, horizon, date, directionId,
     focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId,
     fromStop?.direction_id, forecastStopId, stops, retry]);
 
   useEffect(() => {
-    if (page !== "analytics") return;
-    if (!date || (horizon === "month" && !validMonthPeriod(dateFrom, dateTo))) {
+    if (page !== "analytics" || networkSplitCount > 1) return;
+    if (!date) {
       setNetworkForecast(null);
       setNetworkError("");
       setNetworkBusy(false);
       return;
     }
     const controller = new AbortController();
-    const timestamp = snapshotTimestamp(date, horizon, dateFrom);
+    const timestamp = snapshotTimestamp(date, horizon);
     setNetworkBusy(true);
     setNetworkError("");
     setNetworkForecast(null);
     getMapForecast({ horizon, timestamp, forecast_origin: timestamp }, controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setNetworkForecast(data); })
+      .then((data) => { if (!controller.signal.aborted) setNetworkForecast(supportedNetworkSnapshot(data)); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [page, horizon, date, dateFrom, dateTo, retry]);
+  }, [page, horizon, date, retry, networkSplitCount]);
 
   return (
     <>
-      <Header page={page} onNavigate={navigate} />
-      <main>
-        {page === "home" ? <HomePage onNavigate={navigate} /> : <>
-        {page === "details" ? <h1 className="sr-only">Детализация маршрута</h1> : <div className="intro">
-          <p className="eyebrow">ПАССАЖИРОПОТОК</p>
-          <h1>Аналитика трамвайной сети</h1>
-          <p>Сравните маршруты и остановки по ожидаемой нагрузке. Выберите период и вид рейтинга.</p>
-        </div>}
+      <Header page={page} onNavigate={navigate} theme={theme}
+        onThemeToggle={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
+      <main className={`app-main app-main--${page}`}>
+        {page === "home" ? <HomePage onNavigate={navigate} /> : page === "model" ? <ModelPage /> : <div className={page === "details" ? "workspace-page" : "analytics-page"}>
+        <h1 className="sr-only">{page === "details" ? "Мониторинг маршрута" : "Трамвайная сеть"}</h1>
 
-        <Sidebar
-          mode={page === "analytics" ? "analytics" : "details"}
-          routes={routes}
-          stops={stops}
-          routeId={routeId}
-          fromStopId={fromStopId}
-          toStopId={toStopId}
-          horizon={horizon}
-          date={date}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          monthPeriodValid={validMonthPeriod(dateFrom, dateTo)}
-          busy={page === "analytics" ? networkBusy : busy}
-          loadingCatalog={loadingCatalog}
-          loadingStops={loadingStops}
-          onRouteChange={(id) => {
-            setFocusedPoint(null);
-            setDirectionId(0);
-            setFromStopId("");
-            setToStopId("");
-            setForecastStopId("");
-            setMapForecast(null);
-            setRouteId(id);
-          }}
-          onFromStopChange={(id) => {
-            setFocusedPoint(null);
-            setFromStopId(id);
-            setToStopId("");
-            setForecastStopId(id);
-          }}
-          onToStopChange={(id) => { setFocusedPoint(null); setToStopId(id); }}
-          onHorizonChange={(value) => { setFocusedPoint(null); setHorizon(value); }}
-          onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
-          onDateFromChange={(value) => { setFocusedPoint(null); setDateFrom(value); }}
-          onDateToChange={(value) => { setFocusedPoint(null); setDateTo(value); }}
-          onRefresh={() => setRetry((value) => value + 1)}
-        />
+        {page === "details" && splitCount > 1 && (routes.length
+          ? <SplitWorkspace routes={routes} theme={theme}
+            initialCount={splitCount as 2 | 3 | 4} initialEdge={splitEdge} initialConfig={{ routeId, horizon, date, directionId }}
+            onOpenDetails={closeSplit} onClose={closeSplit} />
+          : <p className="network-status" role="status">Загружаем маршруты для Split View…</p>)}
 
-        {page === "details" && <div ref={mapAnchor}>
+        {page === "details" && splitCount === 1 && <div ref={mapAnchor}>
           <RouteDetailsDashboard
             route={routes.find((r) => r.id === routeId)}
             snapshot={mapForecast}
@@ -307,22 +314,66 @@ export default function App() {
               setForecastStopId(point.stop_id);
             }}
             onRetryForecast={() => setRetry((value) => value + 1)}
+            onSplit={(edge) => { setSplitEdge(edge); setSplitCount(2); }}
+            theme={theme}
+            controls={<Sidebar
+              routes={routes}
+              stops={stops}
+              routeId={routeId}
+              fromStopId={fromStopId}
+              toStopId={toStopId}
+              horizon={horizon}
+              date={date}
+              busy={busy}
+              loadingCatalog={loadingCatalog}
+              loadingStops={loadingStops}
+              onRouteChange={(id) => {
+                setFocusedPoint(null);
+                setStops([]);
+                setDirectionId(0);
+                setFromStopId("");
+                setToStopId("");
+                setForecastStopId("");
+                setMapForecast(null);
+                setRouteId(id);
+              }}
+              onFromStopChange={(id) => {
+                setFocusedPoint(null);
+                setFromStopId(id);
+                setToStopId("");
+                setForecastStopId(id);
+              }}
+              onToStopChange={(id) => { setFocusedPoint(null); setToStopId(id); }}
+              onHorizonChange={(value) => { setFocusedPoint(null); setHorizon(value); }}
+              onDateChange={(value) => { setFocusedPoint(null); setDate(value); }}
+              onRefresh={() => setRetry((value) => value + 1)}
+            />}
           />
         </div>}
 
-        {page === "details" && error && (
+        {page === "details" && splitCount === 1 && error && (
           <p className="error" role="alert">
             {error} Проверьте backend и нажмите «Повторить».
           </p>
         )}
 
-        {page === "analytics" && <RankingsPanel
+        {page === "analytics" && networkSplitCount > 1 && (routes.length
+          ? <SplitWorkspace mode="analytics" routes={routes} theme={theme}
+            initialCount={networkSplitCount as 2 | 3 | 4} initialEdge={networkSplitEdge}
+            initialConfig={{ routeId, horizon, date, directionId, stopId: fromStopId }}
+            onOpenDetails={closeNetworkSplit} onClose={closeNetworkSplit} />
+          : <p className="network-status" role="status">Загружаем сеть для Split View…</p>)}
+
+        {page === "analytics" && networkSplitCount === 1 && <RankingsPanel
           routes={routes}
+          selectedRouteId={networkRouteFocused ? routeId : ""}
+          selectedStop={networkForecast?.points.find((point) => point.route_id === routeId && point.stop_id === fromStopId) ?? null}
           networkData={networkForecast}
           networkBusy={networkBusy}
           networkError={networkError}
           onSelectRoute={(id) => {
             setFocusedPoint(null);
+            setStops([]);
             setFromStopId("");
             setToStopId("");
             setForecastStopId("");
@@ -333,6 +384,7 @@ export default function App() {
           }}
           onSelectStop={(point) => {
             setFocusedPoint(point);
+            setStops([]);
             setFromStopId("");
             setToStopId("");
             setForecastStopId(point.stop_id);
@@ -342,9 +394,30 @@ export default function App() {
             navigate("details");
           }}
           onRetry={() => setRetry((value) => value + 1)}
+          onSplit={(edge) => { setNetworkSplitEdge(edge); setNetworkSplitCount(2); }}
+          theme={theme}
+          controls={<Sidebar
+            mode="analytics"
+            routes={routes}
+            stops={stops}
+            routeId={routeId}
+            fromStopId={fromStopId}
+            toStopId={toStopId}
+            horizon={horizon}
+            date={date}
+            busy={networkBusy}
+            loadingCatalog={loadingCatalog}
+            loadingStops={loadingStops}
+            onRouteChange={(id) => { setStops([]); setRouteId(id); setFromStopId(""); setNetworkRouteFocused(true); }}
+            onFromStopChange={(id) => { setFromStopId(id); setNetworkRouteFocused(true); }}
+            onToStopChange={setToStopId}
+            onHorizonChange={setHorizon}
+            onDateChange={setDate}
+            onRefresh={() => setRetry((value) => value + 1)}
+          />}
         />}
 
-        </>}
+        </div>}
 
         <footer className="site-footer">
           <div><strong>Трамвай / Прогноз</strong><span>Командный проект для Хакатона Московского транспорта · 2026</span></div>
