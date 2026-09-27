@@ -24,6 +24,7 @@ coverage/
 !backend/data/
 backend/data/*
 !backend/data/model_metadata.json
+!backend/data/tram_final_submission.csv
 *.parquet
 *.log
 *.bundle
