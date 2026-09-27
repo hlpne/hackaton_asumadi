@@ -114,6 +114,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
       if (cancelled || !container.current) return;
       const map = new api.YMap(container.current, {
         location: { center: [37.62, 55.75], zoom: 10 },
+        mode: "raster",
         showScaleInCopyrights: true,
         theme,
       });
