@@ -57,7 +57,7 @@ export function ForecastTable({ forecast }: ForecastTableProps) {
             <th scope="col" className="sortable" onClick={() => toggleSort("timestamp")}>
               {forecast.resolution === "schedule" ? "Прибытие, МСК" : "Начало интервала, МСК"} {arrow("timestamp")}
             </th>
-            <th scope="col" className="sortable" onClick={() => toggleSort("predicted_load")}>Прогноз нагрузки {arrow("predicted_load")}</th>
+            <th scope="col" className="sortable" onClick={() => toggleSort("predicted_load")}>{forecast.value_unit === "validations" ? "Прогноз валидаций маршрута" : "Значение прогноза"} {arrow("predicted_load")}</th>
           </tr>
         </thead>
         <tbody>
@@ -65,7 +65,7 @@ export function ForecastTable({ forecast }: ForecastTableProps) {
             <tr key={point.timestamp}>
               <td>{formatter.format(new Date(point.timestamp))}</td>
               {forecast.is_mock && forecast.horizon === "day" && point.predicted_load === 0 ? (
-                <td>Нет рейсов (демо)</td>
+                <td>Нет значения</td>
               ) : (
                 <td>{number.format(point.predicted_load)}</td>
               )}

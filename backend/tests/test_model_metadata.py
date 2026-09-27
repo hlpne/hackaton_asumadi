@@ -22,7 +22,21 @@ def test_model_metadata_is_machine_readable_and_truthful():
         "horizon_days": 61,
     }
     assert data["status"] == "validation_pending"
+    assert data["extrapolation"]["forecast_from"] == "2026-01-01"
+    assert data["extrapolation"]["forecast_to"] == "2027-12-31"
+    assert "не проверена" in data["extrapolation"]["validation_status"]
     assert data["validation"]["final"]["wape"] is None
+    assert data["value_unit"] == "validations"
+    assert data["validation"]["platform_score"] == 0.90461
+    assert data["validation"]["score_without_route5"] is None
+    assert data["artifact"]["submitted_routes"] == 10
+    assert data["artifact"]["displayed_routes"] == 9
+    assert data["validation"]["backtests"][0]["wape"] == 8.8193
+    assert len(data["validation"]["route_wape_october"]) == 9
+    assert len(data["validation"]["route_wape_sep_oct"]) == 9
+    assert data["artifact"]["sha256"] == "05d73ac9bff3364cd1df815c3a3bd5d4a25cdcd2d2711db9e7a5ae7e9778d901"
+    assert data["artifact"]["jvm_model_calls"] == 991
+    assert data["artifact"]["jvm_rounding_differences"] == 2
     assert any("Маршрут 5" in item for item in data["limitations"])
 
 

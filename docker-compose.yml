@@ -1,4 +1,17 @@
 services:
+  model:
+    build:
+      context: .
+      dockerfile: model_service/Dockerfile
+    cpus: 2
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+
   db:
     image: postgres:16-alpine
     environment:
@@ -24,7 +37,8 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CATALOG_BACKEND: postgres
-      PREDICTOR_FACTORY: ${PREDICTOR_FACTORY:-app.predictors.mock:build_predictor}
+      PREDICTOR_FACTORY: ${PREDICTOR_FACTORY:-app.predictors.tram_final:build_predictor}
+      MODEL_SERVICE_URL: http://model:8080
       DB_HOST: db
       DB_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-transport}
@@ -41,8 +55,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      schedule-import:
-        condition: service_completed_successfully
+      model:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"]
       interval: 10s
@@ -59,6 +73,7 @@ services:
       backend:
         condition: service_healthy
   schedule-import:
+    profiles: [tools]
     build:
       context: .
       dockerfile: backend/Dockerfile

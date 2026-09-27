@@ -1,7 +1,7 @@
 import { ArrowsOutIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { getForecast, getMapForecast, getStops } from "../../api";
-import { periodRequest, snapshotTimestamp } from "../../forecastPeriod";
+import { modelDate, modelPeriodRequest, snapshotTimestamp } from "../../forecastPeriod";
 import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
 import type { Theme } from "../../theme";
 import { PeriodControls } from "../layout/PeriodControls";
@@ -51,6 +51,7 @@ function failureMessage(failure: unknown): string {
 function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, onRemove, onSplit, mode }: SplitMapPaneProps) {
   const [stops, setStops] = useState<RouteStop[]>([]);
   const [snapshot, setSnapshot] = useState<MapForecastResponse | null>(null);
+  const [networkRouteForecasts, setNetworkRouteForecasts] = useState<ForecastResponse[]>([]);
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [forecastBusy, setForecastBusy] = useState(false);
   const [forecastError, setForecastError] = useState("");
@@ -95,16 +96,25 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     const timestamp = snapshotTimestamp(settledConfig.date, settledConfig.horizon);
     setBusy(true);
     setError("");
-    getMapForecast(mode === "details" ? {
+    const mapRequest = getMapForecast(mode === "details" ? {
       route_id: settledConfig.routeId, direction_id: settledConfig.directionId, horizon: settledConfig.horizon,
       timestamp, forecast_origin: timestamp,
-    } : { horizon: settledConfig.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setSnapshot(mode === "analytics" ? supportedNetworkSnapshot(data) : data); })
+    } : { horizon: settledConfig.horizon, timestamp, forecast_origin: timestamp }, controller.signal);
+    const range = modelPeriodRequest(settledConfig.date, settledConfig.horizon);
+    const forecasts = mode === "analytics" ? Promise.all(routes.map((route) => getForecast({
+      route_id: route.id, horizon: settledConfig.horizon, resolution: range.resolution,
+      from: range.from, to: range.to, forecast_origin: range.from,
+    }, controller.signal))) : Promise.resolve([]);
+    Promise.all([mapRequest, forecasts])
+      .then(([data, values]) => { if (!controller.signal.aborted) {
+        setSnapshot(mode === "analytics" ? supportedNetworkSnapshot(data) : data);
+        setNetworkRouteForecasts(values);
+      } })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
   }, [config.routeId, config.directionId, config.horizon, config.date,
-    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, retry, mode]);
+    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, retry, mode, routes]);
 
   useEffect(() => {
     if (mode !== "details" || !stops.length) return;
@@ -115,12 +125,10 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       return;
     }
     const controller = new AbortController();
-    const range = periodRequest(settledConfig.date, settledConfig.horizon);
-    const first = stops.find((item) => item.direction_id === settledConfig.directionId);
+    const range = modelPeriodRequest(settledConfig.date, settledConfig.horizon);
     setForecastBusy(true);
     setForecastError("");
-    getForecast({ route_id: settledConfig.routeId, stop_id: selected?.stop_id || settledConfig.stopId || first?.id,
-      direction_id: settledConfig.directionId, horizon: settledConfig.horizon, resolution: range.resolution,
+    getForecast({ route_id: settledConfig.routeId, horizon: settledConfig.horizon, resolution: range.resolution,
       from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
@@ -143,7 +151,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     const selectedStop = snapshot?.points.find((point) => point.route_id === config.routeId && point.stop_id === config.stopId) ?? null;
     return <section className="split-pane split-pane--network" aria-label={`Окно сети ${index + 1}`}>
       <RankingsPanel routes={routes} selectedRouteId={config.routeId} selectedStop={selectedStop}
-        networkData={snapshot} networkBusy={busy} networkError={error} onRetry={() => setRetry((value) => value + 1)}
+        networkData={snapshot} routeForecasts={networkRouteForecasts} networkBusy={busy} networkError={error} onRetry={() => setRetry((value) => value + 1)}
         onSelectRoute={(routeId) => { setStops([]); onChange({ ...config, routeId, stopId: "" }); }}
         onSelectStop={(point) => onChange({ ...config, routeId: point.route_id, stopId: point.stop_id })}
         onSplit={onSplit} theme={theme}
@@ -199,12 +207,13 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
     return Array.from({ length: 4 }, (_, index) => {
       const routeId = routeValues[index];
       const horizon = horizonValues[index];
+      const selectedHorizon = horizon === "day" || horizon === "month" ? horizon : initialConfig.horizon;
       return {
         routeId: routes.some((route) => route.id === routeId)
           ? routeId
           : routes[index % Math.max(routes.length, 1)]?.id ?? initialConfig.routeId,
-        date: /^\d{4}-\d{2}-\d{2}$/.test(dateValues[index] ?? "") ? dateValues[index] : initialConfig.date,
-        horizon: horizon === "day" || horizon === "month" || horizon === "year" ? horizon : initialConfig.horizon,
+        date: modelDate(dateValues[index] ?? initialConfig.date, selectedHorizon),
+        horizon: selectedHorizon,
         directionId: directionValues[index] === "1" ? 1 : 0,
         stopId: stopValues[index] || "",
       };

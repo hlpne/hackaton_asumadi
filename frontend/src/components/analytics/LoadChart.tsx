@@ -6,6 +6,7 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  ReferenceDot,
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
 import type { Theme } from "../../theme";
@@ -13,6 +14,7 @@ import type { Theme } from "../../theme";
 interface LoadChartProps {
   forecast: ForecastResponse;
   theme: Theme;
+  selectedIndex?: number;
 }
 
 function formatTick(ts: string, horizon: Horizon): string {
@@ -35,7 +37,7 @@ function formatHourTick(value: number): string {
   return hour === "00" ? "00:00" : `${Number(hour)}:00`;
 }
 
-export function LoadChart({ forecast, theme }: LoadChartProps) {
+export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
   const css = getComputedStyle(document.documentElement);
   const color = (token: string) => css.getPropertyValue(token).trim();
   const colors = {
@@ -69,7 +71,7 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
             : <XAxis dataKey="label" stroke={colors.muted} fontSize={12} tickMargin={8}
               interval={forecast.horizon === "year" ? 1 : 3} />}
           <YAxis stroke={colors.muted} fontSize={12} tickMargin={4} domain={[0, chartMax]}
-            label={{ value: "Прогноз нагрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
+            label={{ value: forecast.value_unit === "validations" ? "Валидаций" : "Прогноз нагрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
           <Tooltip
             contentStyle={{
               background: theme === "light" ? "rgba(249, 252, 255, .92)" : "rgba(12, 27, 46, .9)",
@@ -84,7 +86,8 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
               ? formatTick(new Date(Number(value)).toISOString(), "day")
               : String(value)}
             formatter={(value, name) => {
-              const label = String(name) === "predicted_load" ? "Прогноз нагрузки" : String(name);
+              const label = String(name) === "predicted_load"
+                ? forecast.value_unit === "validations" ? "Валидации маршрута" : "Прогноз нагрузки" : String(name);
               const num =
                 typeof value === "number" ? value.toFixed(1) : String(value);
               return [num, label];
@@ -99,6 +102,10 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
             dot={false}
             name="predicted_load"
           />
+          {selectedIndex !== undefined && data[selectedIndex] && <ReferenceDot
+            x={forecast.horizon === "day" ? data[selectedIndex].timestamp : data[selectedIndex].label}
+            y={data[selectedIndex].predicted_load} r={6} fill={colors.predicted}
+            stroke={colors.text} strokeWidth={2} />}
         </LineChart>
       </ResponsiveContainer>
     </div>

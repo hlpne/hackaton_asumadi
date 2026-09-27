@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { loadColor, loadLabels, loadLevel, type LoadLevel } from "../../loadLevel";
 import type { MapForecastPoint, MapForecastResponse, RouteStop } from "../../types";
 import { WheelPicker } from "../layout/WheelPicker";
-
-type LoadFilter = "all" | LoadLevel | "unavailable";
 
 interface StopsModalProps {
   stops: RouteStop[];
@@ -13,11 +10,8 @@ interface StopsModalProps {
   onClose: () => void;
 }
 
-const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
-
 export function StopsModal({ stops, snapshot, selectedStopId, onSelect, onClose }: StopsModalProps) {
   const [direction, setDirection] = useState("all");
-  const [load, setLoad] = useState<LoadFilter>("all");
   const [wheelValue, setWheelValue] = useState("");
   const closeButton = useRef<HTMLButtonElement>(null);
 
@@ -37,11 +31,6 @@ export function StopsModal({ stops, snapshot, selectedStopId, onSelect, onClose 
   const visible = stops
     .filter((stop) => direction === "all" || stop.direction_id === Number(direction))
     .map((stop) => ({ stop, point: pointByStop.get(`${stop.direction_id}/${stop.id}`) }))
-    .filter(({ point }) => {
-      if (load === "all") return true;
-      if (load === "unavailable") return !point;
-      return Boolean(point && snapshot && loadLevel(point.predicted_load, snapshot) === load);
-    })
     .sort((a, b) => a.stop.direction_id - b.stop.direction_id || a.stop.sequence - b.stop.sequence);
   const chosen = visible.find(({ stop }) => `${stop.direction_id}/${stop.id}` === wheelValue)
     ?? visible.find(({ stop }) => stop.id === selectedStopId) ?? visible[0];
@@ -62,22 +51,15 @@ export function StopsModal({ stops, snapshot, selectedStopId, onSelect, onClose 
           <WheelPicker label="Направление" value={direction} onChange={setDirection}
             options={[{ value: "all", label: "Оба направления" }, { value: "0", label: "Направление 1" },
               { value: "1", label: "Направление 2" }]} />
-          <WheelPicker label="Загрузка" value={load} onChange={(value) => setLoad(value as LoadFilter)}
-            options={[{ value: "all", label: "Любая" }, { value: "low", label: "Низкая" },
-              { value: "medium", label: "Средняя" }, { value: "high", label: "Высокая" },
-              { value: "unavailable", label: "Без прогноза" }]} />
         </div>
         <div className="modal-body stops-modal-body">
           <p className="stops-count" role="status">Показано {visible.length} из {stops.length} остановок</p>
           {visible.length ? <div className="stops-wheel-layout">
             <WheelPicker inline label="Выберите остановку" value={chosenKey} onChange={setWheelValue}
-              options={visible.map(({ stop, point }) => ({ value: `${stop.direction_id}/${stop.id}`, label: stop.name,
-                meta: `№ ${stop.sequence + 1} · ${point ? number.format(point.predicted_load) : "—"}`,
-                color: point && snapshot ? loadColor(point.predicted_load, snapshot) : undefined }))} />
+              options={visible.map(({ stop }) => ({ value: `${stop.direction_id}/${stop.id}`, label: stop.name,
+                meta: `№ ${stop.sequence + 1}` }))} />
             <div className="wheel-preview"><span>Направление {chosen.stop.direction_id + 1} · остановка {chosen.stop.sequence + 1}</span>
-              <strong>{chosen.stop.name}</strong><small>{chosen.point && snapshot
-                ? `${loadLabels[loadLevel(chosen.point.predicted_load, snapshot)]} · прогноз ${number.format(chosen.point.predicted_load)}`
-                : "Нет прогноза для остановки"}</small>
+              <strong>{chosen.stop.name}</strong><small>Прогноз доступен только для маршрута целиком</small>
               <button type="button" disabled={!chosen.point} onClick={() => { if (chosen.point) { onSelect(chosen.point); onClose(); } }}>
                 Показать на карте</button>
             </div>

@@ -1,4 +1,4 @@
-import type { MapForecastResponse } from "./types";
+import type { ForecastResponse, MapForecastResponse } from "./types";
 
 export type LoadLevel = "low" | "medium" | "high";
 
@@ -34,6 +34,28 @@ export function loadLevel(value: number, snapshot: MapForecastResponse): LoadLev
   if (min === max) return "medium";
   const relative = (value - min) / (max - min);
   return relative < 1 / 3 ? "low" : relative < 2 / 3 ? "medium" : "high";
+}
+
+/** A relative level for route-wide validation counts in one forecast period. */
+export function validationLevel(value: number, values: number[]): LoadLevel {
+  if (!values.length) return "medium";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return "medium";
+  const relative = (value - min) / (max - min);
+  return relative < 1 / 3 ? "low" : relative < 2 / 3 ? "medium" : "high";
+}
+
+/** Compare a route with its own forecast period in every map view. */
+export function forecastValidationLevel(forecast: ForecastResponse, timestamp: string): LoadLevel | null {
+  const selected = forecast.points.find((point) => point.timestamp === timestamp);
+  if (!selected) return null;
+  return validationLevel(selected.predicted_load, forecast.points.map((point) => point.predicted_load));
+}
+
+export function validationColor(level: LoadLevel): string {
+  return resolvedToken(`--status-${level === "low" ? "normal" : level === "medium" ? "attention" : "critical"}`,
+    level === "low" ? "#5ec557" : level === "medium" ? "#f59a3d" : "#ff5a5f");
 }
 
 export function loadColor(value: number, snapshot: MapForecastResponse): string {

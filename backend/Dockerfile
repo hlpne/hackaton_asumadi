@@ -8,6 +8,7 @@ COPY backend/requirements-model-example.txt /project/backend/requirements-model-
 RUN if [ "$INSTALL_MODEL_EXAMPLE" = "true" ]; then pip install --no-cache-dir -r /project/backend/requirements-model-example.txt; fi
 COPY backend/app /project/backend/app
 COPY backend/data /project/backend/data
+COPY tram_final/tram_final/outputs/submission_final.csv /project/tram_final/tram_final/outputs/submission_final.csv
 COPY mock_data /project/mock_data
 RUN useradd --create-home --uid 10001 appuser
 USER appuser

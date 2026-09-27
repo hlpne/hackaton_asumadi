@@ -1,14 +1,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MapTrifoldIcon } from "@phosphor-icons/react";
 import { getRouteGeometry } from "../../api";
-import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
+import type { ForecastPoint, MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
 import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 } from "./YandexMap";
 import { buildNetworkLines } from "./networkMapLines";
 import { buildSchematic, VIEW_HEIGHT, VIEW_WIDTH, type SchematicRun } from "./networkSchematic";
 import type { Theme } from "../../theme";
-import { loadColors } from "../../loadLevel";
 import { routesNearPoint } from "./routeIntersections";
 import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
+import { ValidationLegend } from "./ValidationLegend";
+import { ForecastTimeControl } from "./ForecastTimeControl";
 
 const geometryCache = new Map<string, RouteGeometry>();
 
@@ -19,11 +20,18 @@ interface NetworkMapProps {
   onSelectRoute: (routeId: string) => void;
   selectedRouteId: string;
   selectedStop: MapForecastPoint | null;
+  validationColors?: Map<string, string>;
+  currentValuesByRoute: Map<string, number>;
+  forecastPoints: ForecastPoint[];
+  selectedTimeIndex: number;
+  onTimeIndexChange: (index: number) => void;
+  selectedValidations: number;
   onSplit?: (edge: SplitEdge) => void;
 }
 
 const STROKE = 3.4;
 const CASING = STROKE + 2.4;
+const validationNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 
 function runColor(run: SchematicRun, routeColor: string | undefined): string {
   if (run.level === "route") return routeColor ?? "var(--status-neutral)";
@@ -31,12 +39,14 @@ function runColor(run: SchematicRun, routeColor: string | undefined): string {
   return `var(--status-${run.level === "low" ? "normal" : run.level === "medium" ? "attention" : "critical"})`;
 }
 
-export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRouteId, selectedStop, onSplit }: NetworkMapProps) {
+export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRouteId, selectedStop, validationColors,
+  currentValuesByRoute, forecastPoints, selectedTimeIndex, onTimeIndexChange, selectedValidations, onSplit }: NetworkMapProps) {
   const titleId = useId();
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
   const overlays = useRef<MapChild[]>([]);
+  const fittedGeometries = useRef<RouteGeometry[] | null>(null);
   const selectRouteRef = useRef(onSelectRoute);
   const [ready, setReady] = useState(false);
   const [mapGeneration, setMapGeneration] = useState(0);
@@ -49,7 +59,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY?.trim() ?? "";
   const showFallback = !apiKey || Boolean(mapError);
   const routeIds = routes.map((route) => route.id).join("|");
-  const coloredLines = useMemo(() => buildNetworkLines(geometries, routes, snapshot), [geometries, routes, snapshot]);
+  const coloredLines = useMemo(() => buildNetworkLines(geometries, routes, snapshot, validationColors), [geometries, routes, snapshot, validationColors]);
   const routeById = useMemo(() => new Map(routes.map((route) => [route.id, route])), [routes]);
   const routeNumbers = useMemo(() => new Map(routes.map((route) => [
     route.id, route.name.split("·")[0].replace(/^Трамвай\s+/i, "").trim(),
@@ -133,6 +143,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
       mapRef.current = null;
       apiRef.current = null;
       overlays.current = [];
+      fittedGeometries.current = null;
       setReady(false);
     };
   }, [apiKey, theme]);
@@ -180,7 +191,8 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
       map.addChild(child);
       overlays.current.push(child);
     }
-    if (Number.isFinite(minLon)) {
+    if (Number.isFinite(minLon) && fittedGeometries.current !== geometries) {
+      fittedGeometries.current = geometries;
       map.update({ location: { bounds: [[minLon, minLat], [maxLon, maxLat]] as [LngLat, LngLat] } });
     }
   }, [ready, mapGeneration, coloredLines, geometries, selectedRouteId, selectedStop]);
@@ -191,7 +203,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
 
   const schematic = useMemo(() => {
     if (!showFallback) return { routes: [], marker: null, project: null };
-    const built = buildSchematic(geometries, routes.map((route) => route.id), snapshot);
+    const built = buildSchematic(geometries, routes.map((route) => route.id), null);
     if (!built) return { routes: [], marker: null, project: null };
     const byRoute = new Map<string, typeof built.tracks>();
     built.tracks.forEach((track) => byRoute.set(track.routeId, [...(byRoute.get(track.routeId) ?? []), track]));
@@ -204,7 +216,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   return <section className="map-wrapper network-map" aria-labelledby={titleId}>
     <div className="map-heading"><div>
       <h2 id={titleId}><MapTrifoldIcon weight="bold" aria-hidden="true" />Карта всей трамвайной сети</h2>
-      <p>Цвет линии — уровень загрузки. Нажмите линию, чтобы открыть маршрут в мониторинге.</p>
+      <p>Цвет сравнивает выбранный час или день с другими часами или днями этого же маршрута. Нажмите линию, чтобы открыть маршрут.</p>
     </div></div>
     <div className="map-stage">
       {showFallback ? <div ref={container} className="map-container network-map-fallback">
@@ -234,7 +246,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
                 style={{ strokeWidth: selected ? CASING + 1 : CASING }} />)}
               {tracks.map((track, index) => track.runs.map((run, runIndex) => <path key={`l${index}-${runIndex}`}
                 className="network-route-line" d={run.d}
-                style={{ stroke: runColor(run, routeById.get(routeId)?.color), strokeWidth: selected ? STROKE + 1 : STROKE }} />))}
+                style={{ stroke: runColor(run, validationColors?.get(routeId) ?? routeById.get(routeId)?.color), strokeWidth: selected ? STROKE + 1 : STROKE }} />))}
             </g>;
           })}
           {schematic.marker && <circle cx={schematic.marker[0]} cy={schematic.marker[1]} r="9" fill="#4f9bff" stroke="white" strokeWidth="3">
@@ -247,20 +259,19 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
         <strong>{hoveredRoute.routeIds.length > 1 ? "Маршруты на этом участке" : "Маршрут на этом участке"}</strong>
         <div className="map-route-tooltip-list">{hoveredRoute.routeIds.map((id) => <button key={id} type="button"
           onClick={() => { cancelDismiss(); setHoveredRoute(null); onSelectRoute(id); }}>
-          <i style={{ background: routeById.get(id)?.color }} aria-hidden="true" />
-          {routeById.get(id)?.name.replace(" · демопрогноз", "") ?? `Маршрут ${routeNumbers.get(id) ?? id}`}
+          <i style={{ background: validationColors?.get(id) ?? routeById.get(id)?.color }} aria-hidden="true" />
+          <span>{routeById.get(id)?.name.replace(" · демопрогноз", "") ?? `Маршрут ${routeNumbers.get(id) ?? id}`}</span>
+          {currentValuesByRoute.has(id) && <small>{validationNumber.format(currentValuesByRoute.get(id)!)} вал.</small>}
         </button>)}</div>
       </div>}
       {selectedStop && <div className="network-selected-caption">Выбрана остановка · {selectedStop.stop_name}</div>}
-      <div className="map-legend" aria-label="Уровни загрузки">
-        <span><i style={{ background: loadColors.low }} /> Низкая</span>
-        <span><i style={{ background: loadColors.medium }} /> Средняя</span>
-        <span><i style={{ background: loadColors.high }} /> Высокая</span>
-      </div>
       <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
       {onSplit && <EdgeSplitHandles onSplit={onSplit} />}
     </div>
     {loading && <p className="map-empty" role="status">Загружаем линии маршрутов…</p>}
+    <ForecastTimeControl points={forecastPoints} selectedIndex={selectedTimeIndex} onChange={onTimeIndexChange}
+      horizon={snapshot.horizon} validations={selectedValidations} scope="вся сеть" />
+    {validationColors?.size ? <ValidationLegend /> : null}
     {!loading && geometryError && <p className="map-empty" role="alert">{geometryError}</p>}
   </section>;
 }

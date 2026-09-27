@@ -20,7 +20,8 @@ export const SUPPORTED_ROUTE_IDS = [
 const supported = new Set<string>(SUPPORTED_ROUTE_IDS);
 
 export function supportedRoutes(routes: Route[]): Route[] {
-  return routes.filter((route) => supported.has(route.id));
+  return routes.filter((route) => supported.has(route.id))
+    .map((route) => ({ ...route, name: route.name.replace(" · демопрогноз", "") }));
 }
 export function supportedNetworkSnapshot(snapshot: MapForecastResponse): MapForecastResponse {
   return { ...snapshot, points: snapshot.points.filter((point) => supported.has(point.route_id)) };

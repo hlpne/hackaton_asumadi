@@ -1,0 +1,120 @@
+{
+  "cutoff": "2025-10-31",
+  "mode": "anchor",
+  "half_life": 30,
+  "shape_blend": 0.5,
+  "route5_level": 6500.0,
+  "volume_models": [
+    {
+      "config": 0,
+      "features": [
+        "route",
+        "hour",
+        "dow",
+        "off",
+        "kind",
+        "hol",
+        "hol_wd",
+        "preh",
+        "wsat",
+        "blen",
+        "bpos",
+        "school",
+        "restr",
+        "L_work",
+        "L_wdow",
+        "L_sat",
+        "L_sun",
+        "L_sat_any",
+        "L_sun_any",
+        "lag_school",
+        "B"
+      ],
+      "files": [
+        "volume_cfg0_seed1.txt",
+        "volume_cfg0_seed2.txt",
+        "volume_cfg0_seed3.txt",
+        "volume_cfg0_seed4.txt",
+        "volume_cfg0_seed5.txt"
+      ]
+    },
+    {
+      "config": 1,
+      "features": [
+        "route",
+        "hour",
+        "dow",
+        "off",
+        "kind",
+        "hol",
+        "hol_wd",
+        "preh",
+        "wsat",
+        "blen",
+        "bpos",
+        "restr",
+        "L_work",
+        "L_wdow",
+        "L_sat",
+        "L_sun",
+        "L_sat_any",
+        "L_sun_any",
+        "B"
+      ],
+      "files": [
+        "volume_cfg1_seed1.txt",
+        "volume_cfg1_seed2.txt",
+        "volume_cfg1_seed3.txt",
+        "volume_cfg1_seed4.txt",
+        "volume_cfg1_seed5.txt"
+      ]
+    },
+    {
+      "config": 2,
+      "features": [
+        "route",
+        "hour",
+        "dow",
+        "off",
+        "kind",
+        "hol",
+        "hol_wd",
+        "preh",
+        "wsat",
+        "blen",
+        "bpos",
+        "school",
+        "restr",
+        "L_work",
+        "L_wdow",
+        "L_sat",
+        "L_sun",
+        "L_sat_any",
+        "L_sun_any",
+        "lag_school",
+        "B"
+      ],
+      "files": [
+        "volume_cfg2_seed1.txt",
+        "volume_cfg2_seed2.txt",
+        "volume_cfg2_seed3.txt",
+        "volume_cfg2_seed4.txt",
+        "volume_cfg2_seed5.txt"
+      ]
+    }
+  ],
+  "shape_model": {
+    "file": "shape.txt",
+    "features": [
+      "route",
+      "hour",
+      "dowx",
+      "kind",
+      "hol",
+      "preh",
+      "daylight",
+      "restr"
+    ]
+  },
+  "postprocess": "volume: pred = scale * (mean_config(mean_seed(model(x))) + B); workday Saturday: average of two encodings (kind=0 / kind=1); hours 1-4 = 0; shape: share = normalize(shape_model(x)); final = total_day * (b*share + (1-b)*own_share)"
+}

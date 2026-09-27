@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { forecastPeriod, periodRequest, snapshotTimestamp } from "../src/forecastPeriod.ts";
+import { forecastPeriod, modelDate, modelPeriodRequest, periodRequest, snapshotTimestamp } from "../src/forecastPeriod.ts";
+
+test("model dates extend through 2027 and use hourly route data", () => {
+  assert.equal(modelDate("2026-09-27", "day"), "2026-09-27");
+  assert.equal(modelDate("2028-01-01", "day"), "2027-12-31");
+  assert.equal(modelDate("2027-12-31", "month"), "2027-12-02");
+  assert.deepEqual(modelPeriodRequest("2025-12-31", "day"), {
+    from: "2025-12-31T00:00:00+03:00",
+    to: "2026-01-01T00:00:00+03:00",
+    resolution: "PT1H",
+  });
+  assert.deepEqual(modelPeriodRequest("2025-12-01", "month"), {
+    from: "2025-12-01T00:00:00+03:00",
+    to: "2026-01-01T00:00:00+03:00",
+    resolution: "P1D",
+  });
+});
 
 test("month selected on the first uses calendar boundaries", () => {
   assert.deepEqual(forecastPeriod("2026-09-01", "month"), {

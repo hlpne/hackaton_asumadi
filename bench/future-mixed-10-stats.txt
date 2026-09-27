@@ -1,0 +1,10 @@
+﻿2026-09-27T23:10:37.4669726+03:00|hackaton-asumadi-bench-backend|9.61%|74.08MiB / 2GiB|hackaton_asumadi-model-1|0.42%|117MiB / 1GiB
+2026-09-27T23:10:40.6031887+03:00|hackaton-asumadi-bench-backend|16.72%|73.72MiB / 2GiB|hackaton_asumadi-model-1|102.05%|119.9MiB / 1GiB
+2026-09-27T23:10:44.7144446+03:00|hackaton-asumadi-bench-backend|17.03%|74.89MiB / 2GiB|hackaton_asumadi-model-1|102.64%|122.9MiB / 1GiB
+2026-09-27T23:10:47.8216419+03:00|hackaton-asumadi-bench-backend|17.82%|74.95MiB / 2GiB|hackaton_asumadi-model-1|103.33%|124.8MiB / 1GiB
+2026-09-27T23:10:51.6403695+03:00|hackaton-asumadi-bench-backend|16.98%|75.81MiB / 2GiB|hackaton_asumadi-model-1|102.89%|126.4MiB / 1GiB
+2026-09-27T23:10:55.7699333+03:00|hackaton-asumadi-bench-backend|13.98%|76.02MiB / 2GiB|hackaton_asumadi-model-1|134.73%|141.9MiB / 1GiB
+2026-09-27T23:10:58.8714010+03:00|hackaton-asumadi-bench-backend|13.13%|75.46MiB / 2GiB|hackaton_asumadi-model-1|102.80%|128.7MiB / 1GiB
+2026-09-27T23:11:02.9291578+03:00|hackaton-asumadi-bench-backend|13.85%|75.71MiB / 2GiB|hackaton_asumadi-model-1|102.76%|129.3MiB / 1GiB
+2026-09-27T23:11:06.0290151+03:00|hackaton-asumadi-bench-backend|11.45%|75.48MiB / 2GiB|hackaton_asumadi-model-1|117.01%|139.5MiB / 1GiB
+2026-09-27T23:11:10.1518293+03:00|hackaton-asumadi-bench-backend|10.65%|76MiB / 2GiB|hackaton_asumadi-model-1|102.22%|129.6MiB / 1GiB

@@ -115,6 +115,13 @@ export interface ModelMetadata {
     routes: number;
     horizon_days: number;
   };
+  extrapolation: {
+    model_version: string;
+    forecast_from: string;
+    forecast_to: string;
+    method: string;
+    validation_status: string;
+  } | null;
   validation: {
     method: string;
     leakage_control: string;
@@ -122,6 +129,37 @@ export interface ModelMetadata {
     final: ModelMetricSet;
     folds: ModelMetricSlice[];
     horizon_buckets: ModelMetricSlice[];
+    platform_score: number;
+    score_without_route5: number | null;
+    platform_scope: string;
+    backtests: Array<{
+      label: string;
+      train_cutoff: string;
+      forecast_period: string;
+      method: string;
+      score: number;
+      wape: number;
+      note: string;
+    }>;
+    route_wape_october: ModelMetricSlice[];
+    route_wape_sep_oct: ModelMetricSlice[];
+  };
+  score_history: Array<{ label: string; score: number }>;
+  pipeline: Array<{ label: string; description: string }>;
+  artifact: {
+    submitted_rows: number;
+    submitted_routes: number;
+    displayed_routes: number;
+    volume_models: number;
+    shape_models: number;
+    sha256: string;
+    verified_at: string;
+    inference_engines: string[];
+    onnx_max_abs_diff: number;
+    jvm_max_abs_diff: number;
+    jvm_model_calls: number;
+    jvm_feature_rows: number;
+    jvm_rounding_differences: number;
   };
   feature_families: string[];
   limitations: string[];

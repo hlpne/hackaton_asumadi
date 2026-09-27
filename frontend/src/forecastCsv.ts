@@ -1,4 +1,4 @@
-import type { MapForecastPoint, MapForecastResponse } from "./types";
+import type { ForecastResponse, MapForecastPoint, MapForecastResponse } from "./types";
 
 const columns = [
   "route_id", "route_name", "direction_id", "stop_id", "stop_name", "sequence",
@@ -54,6 +54,23 @@ export function downloadForecastSnapshotCsv(snapshot: MapForecastResponse, route
     `tram-${routeId.replace(/[^a-z0-9-]/gi, "")}-${snapshot.timestamp.slice(0, 10)}-direction-${directionId + 1}.csv`);
 }
 
+export function downloadRouteValidationsCsv(forecast: ForecastResponse): void {
+  const header = "route_id;timestamp;validations;model_version";
+  const rows = forecast.points.map((point) => [forecast.series_key.route_id, point.timestamp,
+    point.predicted_load, forecast.model_version].map(cell).join(";"));
+  download(`\uFEFF${[header, ...rows].join("\r\n")}\r\n`,
+    `tram-${forecast.series_key.route_id.replace(/[^a-z0-9-]/gi, "")}-${forecast.points[0]?.timestamp.slice(0, 10) ?? "forecast"}-validations.csv`);
+}
+
 export function downloadNetworkSnapshotCsv(snapshot: MapForecastResponse): void {
   download(networkSnapshotCsv(snapshot), `tram-network-${snapshot.timestamp.slice(0, 10)}.csv`);
+}
+
+/** Route-hour or route-day values from the supplied model, without synthetic stop rows. */
+export function downloadNetworkValidationsCsv(forecasts: ForecastResponse[]): void {
+  const header = "route_id;timestamp;validations;model_version";
+  const rows = forecasts.flatMap((forecast) => forecast.points.map((point) =>
+    [forecast.series_key.route_id, point.timestamp, point.predicted_load, forecast.model_version].map(cell).join(";")));
+  download(`\uFEFF${[header, ...rows].join("\r\n")}\r\n`,
+    `tram-network-${forecasts[0]?.points[0]?.timestamp.slice(0, 10) ?? "forecast"}-validations.csv`);
 }

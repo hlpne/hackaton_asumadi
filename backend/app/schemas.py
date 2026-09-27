@@ -299,6 +299,42 @@ class ModelMetricSlice(ContractModel):
     wape: float = Field(ge=0)
 
 
+class ModelBacktest(ContractModel):
+    label: str
+    train_cutoff: str
+    forecast_period: str
+    method: str
+    score: float = Field(ge=0, le=1)
+    wape: float = Field(ge=0)
+    note: str
+
+
+class ModelScoreStage(ContractModel):
+    label: str
+    score: float = Field(ge=0, le=1)
+
+
+class ModelPipelineStage(ContractModel):
+    label: str
+    description: str
+
+
+class ModelArtifactSummary(ContractModel):
+    submitted_rows: int = Field(gt=0)
+    submitted_routes: int = Field(gt=0)
+    displayed_routes: int = Field(gt=0)
+    volume_models: int = Field(gt=0)
+    shape_models: int = Field(gt=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verified_at: str
+    inference_engines: list[str]
+    onnx_max_abs_diff: float = Field(ge=0)
+    jvm_max_abs_diff: float = Field(ge=0)
+    jvm_model_calls: int = Field(gt=0)
+    jvm_feature_rows: int = Field(gt=0)
+    jvm_rounding_differences: int = Field(ge=0)
+
+
 class ModelValidation(ContractModel):
     method: str
     leakage_control: str
@@ -306,12 +342,26 @@ class ModelValidation(ContractModel):
     final: ModelMetricSet
     folds: list[ModelMetricSlice]
     horizon_buckets: list[ModelMetricSlice]
+    platform_score: float = Field(ge=0, le=1)
+    score_without_route5: float | None = Field(default=None, ge=0, le=1)
+    platform_scope: str
+    backtests: list[ModelBacktest]
+    route_wape_october: list[ModelMetricSlice]
+    route_wape_sep_oct: list[ModelMetricSlice]
 
 
 class ModelDataSource(ContractModel):
     name: str
     description: str
     url: str | None = None
+
+
+class ModelExtrapolation(ContractModel):
+    model_version: str
+    forecast_from: str
+    forecast_to: str
+    method: str
+    validation_status: str
 
 
 class ModelMetadataResponse(ContractModel):
@@ -322,7 +372,11 @@ class ModelMetadataResponse(ContractModel):
     target: str
     value_unit: str
     coverage: ModelCoverage
+    extrapolation: ModelExtrapolation | None = None
     validation: ModelValidation
+    score_history: list[ModelScoreStage]
+    pipeline: list[ModelPipelineStage]
+    artifact: ModelArtifactSummary
     feature_families: list[str]
     limitations: list[str]
     sources: list[ModelDataSource]

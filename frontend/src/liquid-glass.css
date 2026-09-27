@@ -427,11 +427,11 @@ button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 25
 .network-map-fallback .network-route:focus-visible .network-route-casing { stroke: var(--focus-ring); }
 
 
-/* Keep the legend at the map canvas midpoint, independent of the right panel. */
+/* Keep the legend at the screen midpoint, independent of the right panel. */
 .detail-main-grid > .map-wrapper .map-legend,
 .network-workspace > .network-map .map-legend {
-  position: absolute; z-index: 8; bottom: 14px; right: auto;
-  left: 50%;
+  position: fixed; z-index: 121; bottom: 14px; right: auto;
+  left: 50vw;
   width: max-content; max-width: calc(100% - 28px);
   transform: translateX(-50%);
   display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem 1rem;
@@ -450,11 +450,25 @@ button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 25
 /* Split panes use the same map overlay layout as the full monitoring view. */
 .split-pane .detail-main-grid > .map-wrapper .map-legend,
 .split-pane .network-workspace > .network-map .map-legend {
-  bottom: 52px; padding: .4rem .6rem; gap: .35rem .65rem; font-size: .58rem;
+  position: absolute; left: 50%; bottom: 52px; padding: .4rem .6rem; gap: .35rem .65rem; font-size: .58rem;
 }
 @media (max-width: 680px) {
   .detail-main-grid > .map-wrapper .map-legend,
-  .network-workspace > .network-map .map-legend { left: 50%; bottom: 12px; max-width: calc(100% - 24px); border-radius: 14px; }
+  .network-workspace > .network-map .map-legend { left: 50vw; bottom: 12px; max-width: calc(100% - 24px); border-radius: 14px; }
+}
+.detail-main-grid > .map-wrapper .map-time-control,
+.network-workspace > .network-map .map-time-control {
+  border-color: var(--glass-edge); background: var(--glass-shell);
+  box-shadow: inset 0 1px var(--glass-highlight), 0 12px 32px rgba(0, 5, 16, .26);
+  backdrop-filter: blur(18px) saturate(130%); -webkit-backdrop-filter: blur(18px) saturate(130%);
+}
+.split-pane .detail-main-grid > .map-wrapper .map-time-control,
+.split-pane .network-workspace > .network-map .map-time-control { top: 72px; left: 10px; width: min(200px, calc(100% - 20px)); padding: .55rem .65rem; }
+@media (max-width: 680px) {
+  .detail-main-grid > .map-wrapper .map-time-control,
+  .network-workspace > .network-map .map-time-control { top: 112px; }
+  .split-pane .detail-main-grid > .map-wrapper .map-time-control,
+  .split-pane .network-workspace > .network-map .map-time-control { top: 60px; }
 }
 
 @media (min-width: 681px) {

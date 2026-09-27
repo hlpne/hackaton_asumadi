@@ -6,8 +6,16 @@
 **/__pycache__
 **/.pytest_cache
 **/dist
-data
+data/*
+!data/labels
 *.bundle
 *.zip
 models
+tram_final/tram_final/assets
+tram_final/tram_final/experiments
+tram_final/tram_final/jvm
+tram_final/tram_final/reports
+tram_final/tram_final/artifacts/onnx
+tram_final/tram_final/outputs/*
+!tram_final/tram_final/outputs/submission_final.csv
 **/catboost_info

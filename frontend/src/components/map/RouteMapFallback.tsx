@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import type { KeyboardEvent } from "react";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
-import { loadColor, neutralMapColor } from "../../loadLevel";
+import { neutralMapColor } from "../../loadLevel";
 
 interface RouteMapFallbackProps {
   geometry: RouteGeometry | null;
   route?: Route;
   snapshot: MapForecastResponse | null;
+  validationColor?: string;
   markers: MapForecastPoint[];
   selectedStopId: string;
   startStopId: string;
@@ -18,7 +19,7 @@ const VIEW_WIDTH = 1000;
 const VIEW_HEIGHT = 700;
 const PADDING = 70;
 
-export function RouteMapFallback({ geometry, route, snapshot, markers, selectedStopId,
+export function RouteMapFallback({ geometry, route, snapshot, validationColor, markers, selectedStopId,
   startStopId, message, onStopSelect }: RouteMapFallbackProps) {
   const projection = useMemo(() => {
     const lines = geometry?.lines.filter((line) => line.length > 1) ?? [];
@@ -38,24 +39,16 @@ export function RouteMapFallback({ geometry, route, snapshot, markers, selectedS
       x: (lon - minLon) * cosine * scale + offsetX,
       y: (maxLat - lat) * scale + offsetY,
     });
-    const noDemoService = Boolean(snapshot?.is_mock && snapshot.horizon === "day" &&
-      snapshot.points.length && snapshot.points.every((item) => item.predicted_load === 0));
     const paths = lines.map((line, lineIndex) => {
-      const middle = line[Math.floor(line.length / 2)];
-      const nearest = markers.length ? markers.reduce((best, item) => {
-        const distance = (item.lon - middle[0]) ** 2 + (item.lat - middle[1]) ** 2;
-        return distance < best.distance ? { item, distance } : best;
-      }, { item: markers[0], distance: Infinity }).item : null;
-      const color = noDemoService ? neutralMapColor() : nearest && snapshot
-        ? loadColor(nearest.predicted_load, snapshot) : route?.color ?? neutralMapColor();
       const path = line.map((position, index) => {
         const projected = point(position);
         return `${index ? "L" : "M"}${projected.x.toFixed(1)} ${projected.y.toFixed(1)}`;
       }).join(" ");
-      return { key: lineIndex, path, color };
+      return { key: lineIndex, path };
     });
     return { paths, point };
-  }, [geometry, markers, route?.color, snapshot]);
+  }, [geometry]);
+  void snapshot;
 
   const activate = (event: KeyboardEvent<SVGGElement>, stopId: string) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -68,12 +61,12 @@ export function RouteMapFallback({ geometry, route, snapshot, markers, selectedS
     {projection ? <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} role="img"
       aria-label={`Схема ${route?.name ?? "выбранного маршрута"}`} preserveAspectRatio="xMidYMid meet">
       {projection.paths.map((line) => <path key={line.key} d={line.path} fill="none"
-        stroke={line.color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />)}
+        stroke={validationColor ?? route?.color ?? neutralMapColor()} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />)}
       {markers.map((marker) => {
         const position = projection.point([marker.lon, marker.lat]);
         const selected = marker.stop_id === selectedStopId;
         const start = marker.stop_id === startStopId;
-        const label = `${marker.stop_name} · прогноз нагрузки ${marker.predicted_load.toLocaleString("ru-RU")}`;
+        const label = marker.stop_name;
         return <g key={marker.stop_id} className={`fallback-stop${selected ? " selected" : ""}${start ? " segment-start" : ""}`}
           transform={`translate(${position.x.toFixed(1)} ${position.y.toFixed(1)})`}
           role="button" tabIndex={0} aria-label={label} onClick={() => onStopSelect(marker.stop_id)}
