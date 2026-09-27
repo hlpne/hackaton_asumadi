@@ -427,12 +427,12 @@ button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 25
 .network-map-fallback .network-route:focus-visible .network-route-casing { stroke: var(--focus-ring); }
 
 
-/* One load legend for Monitoring and Network: centred in the part of the map not covered by the panel. */
+/* Keep the legend at the map canvas midpoint, independent of the right panel. */
 .detail-main-grid > .map-wrapper .map-legend,
 .network-workspace > .network-map .map-legend {
   position: absolute; z-index: 8; bottom: 14px; right: auto;
-  left: calc((100% - var(--panel-effective-width, 0px) - 14px) / 2);
-  width: max-content; max-width: calc(100% - var(--panel-effective-width, 0px) - 42px);
+  left: 50%;
+  width: max-content; max-width: calc(100% - 28px);
   transform: translateX(-50%);
   display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem 1rem;
   margin: 0; padding: .6rem 1rem;
@@ -447,8 +447,6 @@ button.yandex-stop-marker:not(.ymaps3--button) { border-color: rgba(234, 244, 25
 .network-workspace > .network-map .map-legend span { display: inline-flex; align-items: center; gap: .4rem; }
 .detail-main-grid > .map-wrapper .map-legend i,
 .network-workspace > .network-map .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
-.floating-panel-hidden > .map-wrapper .map-legend,
-.floating-panel-hidden > .network-map .map-legend { left: 50%; max-width: calc(100% - 28px); }
 /* Split panes use the same map overlay layout as the full monitoring view. */
 .split-pane .detail-main-grid > .map-wrapper .map-legend,
 .split-pane .network-workspace > .network-map .map-legend {
