@@ -100,13 +100,13 @@ export default function App() {
     setHorizon(config.horizon);
     setDate(modelDate(config.date, config.horizon));
     setDirectionId(config.directionId);
-    setFromStopId("");
-    setToStopId("");
-    setForecastStopId("");
+    setFromStopId(config.stopId ?? "");
+    setToStopId(config.toStopId ?? "");
+    setForecastStopId(config.stopId ?? "");
     setFocusedPoint(null);
     setSplitCount(1);
     const url = new URL(window.location.href);
-    ["split", "splitRoutes", "splitDates", "splitHorizons", "splitDirections", "splitStops", "splitLayout"].forEach((key) => url.searchParams.delete(key));
+    ["split", "splitRoutes", "splitDates", "splitHorizons", "splitDirections", "splitStops", "splitToStops", "splitLayout"].forEach((key) => url.searchParams.delete(key));
     window.history.replaceState(null, "", url);
   }
 
@@ -289,7 +289,7 @@ export default function App() {
 
         {page === "details" && splitCount > 1 && (routes.length
           ? <SplitWorkspace routes={routes} theme={theme}
-            initialCount={splitCount as 2 | 3 | 4} initialEdge={splitEdge} initialConfig={{ routeId, horizon, date, directionId }}
+            initialCount={splitCount as 2 | 3 | 4} initialEdge={splitEdge} initialConfig={{ routeId, horizon, date, directionId, stopId: fromStopId, toStopId }}
             onOpenDetails={closeSplit} onClose={closeSplit} />
           : <p className="network-status" role="status">Загружаем маршруты для Split View…</p>)}
 

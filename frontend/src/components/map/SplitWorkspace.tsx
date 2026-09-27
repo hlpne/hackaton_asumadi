@@ -10,6 +10,7 @@ import { Sidebar } from "../layout/Sidebar";
 import { RankingsPanel } from "../analytics/RankingsPanel";
 import { RouteDetailsDashboard } from "../analytics/RouteDetailsDashboard";
 import { supportedNetworkSnapshot } from "../../supportedRoutes";
+import { buildRouteSegment } from "../../routeSegment";
 import type { SplitEdge } from "./EdgeSplitHandles";
 import { savedLayout, paneIds, insertPane, removePane, resizeBranch, type LayoutNode, type Side } from "./splitLayout";
 
@@ -19,6 +20,7 @@ export interface SplitPaneConfig {
   date: string;
   directionId: 0 | 1;
   stopId?: string;
+  toStopId?: string;
 }
 
 interface SplitWorkspaceProps {
@@ -63,7 +65,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
   useEffect(() => {
     const timer = window.setTimeout(() => setSettledConfig(config), 420);
     return () => window.clearTimeout(timer);
-  }, [config.routeId, config.directionId, config.horizon, config.date, config.stopId]);
+  }, [config.routeId, config.directionId, config.horizon, config.date, config.stopId, config.toStopId]);
   const route = routes.find((item) => item.id === config.routeId);
   const routeOptions: WheelOption[] = routes.map((item) => ({
     value: item.id,
@@ -77,6 +79,14 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       .map((stop) => ({ value: stop.id, label: stop.name,
         meta: `Напр. ${stop.direction_id + 1} · № ${stop.sequence + 1}` })),
   ];
+  const fromStop = stops.find((stop) => stop.id === config.stopId);
+  const destinationOptions: WheelOption[] = [
+    { value: "", label: fromStop ? "Весь остаток маршрута" : "Сначала выберите начало" },
+    ...[...stops].filter((stop) => stop.id !== config.stopId && stop.direction_id === fromStop?.direction_id)
+      .sort((a, b) => a.name.localeCompare(b.name, "ru") || a.sequence - b.sequence)
+      .map((stop) => ({ value: stop.id, label: stop.name, meta: `№ ${stop.sequence + 1}` })),
+  ];
+  const segment = buildRouteSegment(stops, config.stopId ?? "", config.toStopId ?? "");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -121,7 +131,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     if (mode !== "details" || !stops.length) return;
     if (settledConfig.routeId !== config.routeId || settledConfig.directionId !== config.directionId ||
       settledConfig.horizon !== config.horizon || settledConfig.date !== config.date ||
-      settledConfig.stopId !== config.stopId) {
+      settledConfig.stopId !== config.stopId || settledConfig.toStopId !== config.toStopId) {
       setForecastBusy(false);
       return;
     }
@@ -135,8 +145,8 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [mode, config.routeId, config.directionId, config.horizon, config.date, config.stopId,
-    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, settledConfig.stopId,
+  }, [mode, config.routeId, config.directionId, config.horizon, config.date, config.stopId, config.toStopId,
+    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, settledConfig.stopId, settledConfig.toStopId,
     selected?.stop_id, stops, retry]);
 
   const heading = <div className="split-pane-heading"><div><span>ОКНО 0{index + 1}</span><strong>{mode === "analytics" ? "Вся сеть" : route?.name.replace(" · демопрогноз", "") ?? "Маршрут"}</strong></div>
@@ -167,23 +177,26 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
   }
 
   return <section className="split-pane" aria-label={`Окно карты ${index + 1}`}>
-    <RouteDetailsDashboard route={route} snapshot={snapshot} stops={stops} segment={null}
-      directionId={config.directionId} startStopId={config.stopId ?? ""} selectedStopId={selected?.stop_id ?? config.stopId ?? ""}
+    <RouteDetailsDashboard route={route} snapshot={snapshot} stops={stops} segment={segment}
+      directionId={config.directionId} startStopId={segment?.from.id ?? config.stopId ?? ""} selectedStopId={selected?.stop_id ?? config.stopId ?? ""}
       focusedPoint={selected} busy={busy} forecast={forecast} forecastBusy={forecastBusy} forecastError={forecastError}
       forecastLabel={selected?.stop_name ?? stops.find((stop) => stop.id === config.stopId)?.name}
       horizon={config.horizon} theme={theme} onSplit={onSplit}
-      onSelectStop={(point) => { setSelected(point); onChange({ ...config, stopId: point.stop_id }); }}
+      onSelectStop={(point) => { setSelected(point); onChange({ ...config, stopId: point.stop_id, toStopId: "", directionId: point.direction_id }); }}
       onRetryForecast={() => setRetry((value) => value + 1)} controls={<div className="split-pane-controls">
       {heading}
       <WheelPicker label="Маршрут" value={config.routeId} options={routeOptions}
-        onChange={(routeId) => { setSelected(null); setStops([]); onChange({ ...config, routeId, directionId: 0, stopId: "" }); }} />
-      <WheelPicker label="Остановка" value={config.stopId ?? ""} options={stopOptions}
+        onChange={(routeId) => { setSelected(null); setStops([]); onChange({ ...config, routeId, directionId: 0, stopId: "", toStopId: "" }); }} />
+      <WheelPicker label="От остановки" value={config.stopId ?? ""} options={stopOptions}
         onChange={(stopId) => {
           setSelected(null);
           const stop = stops.find((item) => item.id === stopId);
-          onChange({ ...config, stopId, directionId: stop?.direction_id ?? config.directionId });
+          onChange({ ...config, stopId, toStopId: "", directionId: stop?.direction_id ?? config.directionId });
         }}
         disabled={!stops.length} />
+      <WheelPicker label="До остановки" value={config.toStopId ?? ""} options={destinationOptions}
+        onChange={(toStopId) => { setSelected(null); onChange({ ...config, toStopId }); }}
+        disabled={!fromStop} />
       <PeriodControls compact horizon={config.horizon} date={config.date}
         onHorizonChange={(horizon) => onChange({ ...config, horizon })}
         onDateChange={(date) => onChange({ ...config, date })} />
@@ -203,6 +216,7 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
     const horizonValues = parameters.get(`${key}Horizons`)?.split(",") ?? [];
     const directionValues = parameters.get(`${key}Directions`)?.split(",") ?? [];
     const stopValues = parameters.get(`${key}Stops`)?.split(",") ?? [];
+    const toStopValues = parameters.get(`${key}ToStops`)?.split(",") ?? [];
     return Array.from({ length: 4 }, (_, index) => {
       const routeId = routeValues[index];
       const horizon = horizonValues[index];
@@ -213,8 +227,10 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
           : routes[index % Math.max(routes.length, 1)]?.id ?? initialConfig.routeId,
         date: modelDate(dateValues[index] ?? initialConfig.date, selectedHorizon),
         horizon: selectedHorizon,
-        directionId: directionValues[index] === "1" ? 1 : 0,
-        stopId: stopValues[index] || "",
+        directionId: directionValues[index] === "1" ? 1 : directionValues[index] === "0" ? 0 :
+          index === 0 ? initialConfig.directionId : 0,
+        stopId: stopValues[index] ?? (index === 0 ? initialConfig.stopId : ""),
+        toStopId: toStopValues[index] ?? (index === 0 ? initialConfig.toStopId : ""),
       };
     });
   });
@@ -229,6 +245,7 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
     url.searchParams.set(`${key}Horizons`, configs.map((config) => config.horizon).join(","));
     url.searchParams.set(`${key}Directions`, configs.map((config) => config.directionId).join(","));
     url.searchParams.set(`${key}Stops`, configs.map((config) => config.stopId ?? "").join(","));
+    url.searchParams.set(`${key}ToStops`, configs.map((config) => config.toStopId ?? "").join(","));
     window.history.replaceState(null, "", url);
   }, [configs, layout, key]);
 
@@ -240,7 +257,7 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
     if (ids.length >= 4) return;
     const nextId = [0, 1, 2, 3].find((candidate) => !ids.includes(candidate));
     if (nextId === undefined) return;
-    updateConfig(nextId, { ...configs[id], routeId: routes[(ids.length) % routes.length]?.id ?? configs[id].routeId, stopId: "" });
+    updateConfig(nextId, { ...configs[id], routeId: routes[(ids.length) % routes.length]?.id ?? configs[id].routeId, stopId: "", toStopId: "" });
     setLayout((current) => insertPane(current, id, edge, nextId));
   };
   const remove = (id: number) => {
