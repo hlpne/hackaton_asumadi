@@ -47,6 +47,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   const [hoveredRoute, setHoveredRoute] = useState<{ routeIds: string[]; x: number; y: number } | null>(null);
   const dismissHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY?.trim() ?? "";
+  const showFallback = !apiKey || Boolean(mapError);
   const routeIds = routes.map((route) => route.id).join("|");
   const coloredLines = useMemo(() => buildNetworkLines(geometries, routes, snapshot), [geometries, routes, snapshot]);
   const routeById = useMemo(() => new Map(routes.map((route) => [route.id, route])), [routes]);
@@ -188,6 +189,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   }, [ready, mapGeneration, selectedStop]);
 
   const schematic = useMemo(() => {
+    if (!showFallback) return { routes: [], marker: null, project: null };
     const built = buildSchematic(geometries, routes.map((route) => route.id), snapshot);
     if (!built) return { routes: [], marker: null, project: null };
     const byRoute = new Map<string, typeof built.tracks>();
@@ -196,9 +198,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
     const ordered = [...byRoute].sort(([a], [b]) => Number(a === selectedRouteId) - Number(b === selectedRouteId));
     const marker = selectedStop ? built.project(selectedStop.lon, selectedStop.lat) : null;
     return { routes: ordered.map(([routeId, tracks]) => ({ routeId, tracks })), marker, project: built.project };
-  }, [geometries, routes, snapshot, selectedRouteId, selectedStop]);
-
-  const showFallback = !apiKey || Boolean(mapError);
+  }, [showFallback, geometries, routes, snapshot, selectedRouteId, selectedStop]);
 
   return <section className="map-wrapper network-map" aria-labelledby={titleId}>
     <div className="map-heading"><div>

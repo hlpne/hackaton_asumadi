@@ -184,7 +184,7 @@ export default function App() {
 
   useEffect(() => {
     setStops([]);
-    if ((page === "details" && splitCount > 1) || !routeId) return;
+    if (page === "home" || page === "model" || (page === "details" && splitCount > 1) || !routeId) return;
     const controller = new AbortController();
     setLoadingStops(true);
     getStops(routeId, controller.signal)
@@ -206,6 +206,7 @@ export default function App() {
   }, [routeId, splitCount, page]);
 
   useEffect(() => {
+    if (page !== "details") return;
     if (settledFilters.routeId !== routeId || settledFilters.horizon !== horizon || settledFilters.date !== date) {
       setBusy(false);
       return;
@@ -226,7 +227,7 @@ export default function App() {
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
 
     return () => controller.abort();
-  }, [settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, retry, splitCount]);
+  }, [page, settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, retry, splitCount]);
 
   useEffect(() => {
     if (page !== "details" || splitCount > 1) return;
