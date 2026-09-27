@@ -22,6 +22,11 @@ class Settings:
     db_password: str = field(default="transport_local_only", repr=False)
     db_connect_timeout: int = 3
     db_statement_timeout_ms: int = 3000
+    # Settings() built in code (tests) keeps the API open; from_env() enables auth by default.
+    auth_enabled: bool = False
+    auth_users_file: Path = ROOT / "mock_data" / "dispatchers.json"
+    auth_secret_key: str = field(default="", repr=False)
+    auth_token_ttl_seconds: int = 12 * 60 * 60
 
     @classmethod
     def from_env(cls, env_file: Path | None = None) -> "Settings":
@@ -42,10 +47,19 @@ class Settings:
                 raise ValueError(f"{name} must be greater than zero")
             return value
 
+        auth_enabled = os.getenv("AUTH_ENABLED", "true").strip().lower()
+        if auth_enabled not in {"true", "false"}:
+            raise ValueError("AUTH_ENABLED must be true or false")
+        app_environment = os.getenv("APP_ENV", cls.app_environment)
+        secret_key = os.getenv("AUTH_SECRET_KEY", "")
+        if auth_enabled == "true" and not secret_key and app_environment not in {"development", "test"}:
+            raise ValueError("AUTH_SECRET_KEY is required outside development")
+        users_file = Path(os.getenv("AUTH_USERS_FILE", str(cls.auth_users_file)))
+
         return cls(
             app_name=os.getenv("APP_NAME", cls.app_name),
             app_version=os.getenv("APP_VERSION", cls.app_version),
-            app_environment=os.getenv("APP_ENV", cls.app_environment),
+            app_environment=app_environment,
             log_level=log_level,
             catalog_backend=backend,
             predictor_factory=os.getenv("PREDICTOR_FACTORY", cls.predictor_factory),
@@ -56,6 +70,10 @@ class Settings:
             db_password=os.getenv("POSTGRES_PASSWORD", cls.db_password),
             db_connect_timeout=positive_int("DB_CONNECT_TIMEOUT", cls.db_connect_timeout),
             db_statement_timeout_ms=positive_int("DB_STATEMENT_TIMEOUT_MS", cls.db_statement_timeout_ms),
+            auth_enabled=auth_enabled == "true",
+            auth_users_file=users_file if users_file.is_absolute() else ROOT / users_file,
+            auth_secret_key=secret_key,
+            auth_token_ttl_seconds=positive_int("AUTH_TOKEN_TTL_SECONDS", cls.auth_token_ttl_seconds),
         )
 
     def database_parameters(self) -> dict:

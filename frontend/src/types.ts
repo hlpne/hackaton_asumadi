@@ -127,3 +127,14 @@ export interface ModelMetadata {
   limitations: string[];
   sources: Array<{ name: string; description: string; url: string | null }>;
 }
+
+export interface DispatcherProfile {
+  login: string;
+  full_name: string;
+}
+
+export interface AuthSession {
+  access_token: string;
+  expires_at: string;
+  user: DispatcherProfile;
+}

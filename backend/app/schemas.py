@@ -326,3 +326,23 @@ class ModelMetadataResponse(ContractModel):
     feature_families: list[str]
     limitations: list[str]
     sources: list[ModelDataSource]
+
+
+class LoginRequest(ContractModel):
+    login: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class DispatcherProfile(ContractModel):
+    login: str
+    full_name: str
+
+
+class SessionResponse(ContractModel):
+    user: DispatcherProfile
+    expires_at: AwareDatetime
+
+
+class LoginResponse(SessionResponse):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
