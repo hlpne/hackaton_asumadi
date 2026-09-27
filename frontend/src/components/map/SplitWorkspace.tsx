@@ -71,10 +71,11 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     color: item.color,
   }));
   const stopOptions: WheelOption[] = [
-    { value: "", label: "Не выбрана", meta: "Начало направления" },
-    ...stops.filter((stop) => stop.direction_id === config.directionId)
-      .sort((a, b) => a.sequence - b.sequence)
-      .map((stop) => ({ value: stop.id, label: stop.name, meta: `№ ${stop.sequence + 1}` })),
+    { value: "", label: "Не выбрана", meta: "Весь маршрут" },
+    ...[...stops].sort((a, b) => a.name.localeCompare(b.name, "ru") ||
+      a.direction_id - b.direction_id || a.sequence - b.sequence)
+      .map((stop) => ({ value: stop.id, label: stop.name,
+        meta: `Напр. ${stop.direction_id + 1} · № ${stop.sequence + 1}` })),
   ];
 
   useEffect(() => {
@@ -175,15 +176,13 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       onRetryForecast={() => setRetry((value) => value + 1)} controls={<div className="split-pane-controls">
       {heading}
       <WheelPicker label="Маршрут" value={config.routeId} options={routeOptions}
-        onChange={(routeId) => { setSelected(null); setStops([]); onChange({ ...config, routeId, stopId: "" }); }} />
-      <fieldset className="direction-switch"><legend>Направление</legend><div>
-        {[0, 1].map((direction) => <button key={direction} type="button"
-          className={config.directionId === direction ? "direction-option direction-option--active" : "direction-option"}
-          aria-pressed={config.directionId === direction}
-          onClick={() => { setSelected(null); onChange({ ...config, directionId: direction as 0 | 1, stopId: "" }); }}>{direction + 1}</button>)}
-      </div></fieldset>
+        onChange={(routeId) => { setSelected(null); setStops([]); onChange({ ...config, routeId, directionId: 0, stopId: "" }); }} />
       <WheelPicker label="Остановка" value={config.stopId ?? ""} options={stopOptions}
-        onChange={(stopId) => { setSelected(null); onChange({ ...config, stopId }); }}
+        onChange={(stopId) => {
+          setSelected(null);
+          const stop = stops.find((item) => item.id === stopId);
+          onChange({ ...config, stopId, directionId: stop?.direction_id ?? config.directionId });
+        }}
         disabled={!stops.length} />
       <PeriodControls compact horizon={config.horizon} date={config.date}
         onHorizonChange={(horizon) => onChange({ ...config, horizon })}

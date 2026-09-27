@@ -831,13 +831,13 @@ body[data-page="details"] { overflow: hidden; }
 .wheel-option > svg { width: 15px; color: var(--focus-ring); }
 
 .period-control { display: grid; align-content: start; gap: .6rem; min-height: 210px; padding-top: .15rem; }
-.horizon-switch, .direction-switch { min-width: 0; margin: 0; padding: 0; border: 0; }
-.horizon-switch legend, .direction-switch legend { margin-bottom: .35rem; }
-.horizon-switch > div, .direction-switch > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-soft); }
-.horizon-option, .direction-option { min-width: 0; min-height: 34px !important; padding: .4rem .3rem !important; border-radius: 7px !important; background: transparent !important; color: var(--text-muted) !important; font-size: .7rem; }
-.horizon-option:hover:not(:disabled), .direction-option:hover:not(:disabled) { color: var(--text-primary) !important; }
+.horizon-switch { min-width: 0; margin: 0; padding: 0; border: 0; }
+.horizon-switch legend { margin-bottom: .35rem; }
+.horizon-switch > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-soft); }
+.horizon-option { min-width: 0; min-height: 34px !important; padding: .4rem .3rem !important; border-radius: 7px !important; background: transparent !important; color: var(--text-muted) !important; font-size: .7rem; }
+.horizon-option:hover:not(:disabled) { color: var(--text-primary) !important; }
 .horizon-option:disabled { cursor: not-allowed; opacity: .58; }
-.horizon-option--active, .direction-option--active { background: var(--surface-selected) !important; color: var(--link) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus-ring) 42%, transparent); }
+.horizon-option--active { background: var(--surface-selected) !important; color: var(--link) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus-ring) 42%, transparent); }
 .period-control .date-field, .year-field { gap: .35rem; }
 .period-control .date-trigger { min-height: 42px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface-muted) 72%, transparent); }
 .period-control .period-note { min-height: 38px; color: var(--text-muted); font-size: .65rem; line-height: 1.42; }
@@ -926,8 +926,6 @@ body[data-page="details"] { overflow: hidden; }
 .split-pane-heading > button { display: grid; place-items: center; flex: 0 0 30px; width: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-muted); color: var(--text-secondary); }
 .split-pane-controls .wheel-field { margin-bottom: .55rem; }
 .split-pane-controls .wheel-trigger { min-height: 38px; }
-.split-pane-controls .direction-switch { margin-bottom: .55rem; }
-.split-pane-controls .direction-switch > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .split-pane-controls .period-control { min-height: 194px; gap: .48rem; }
 .split-pane-controls .period-control .period-note { font-size: .58rem; }
 .split-pane-controls .split-refresh { width: 100%; min-height: 36px; margin-top: .2rem; padding: .4rem; border-radius: var(--radius-sm); font-size: .68rem; }
