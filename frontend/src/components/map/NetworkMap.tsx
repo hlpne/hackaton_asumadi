@@ -6,7 +6,6 @@ import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 
 import { buildNetworkLines } from "./networkMapLines";
 import { buildSchematic, VIEW_HEIGHT, VIEW_WIDTH, type SchematicRun } from "./networkSchematic";
 import type { Theme } from "../../theme";
-import { loadColors } from "../../loadLevel";
 import { routesNearPoint } from "./routeIntersections";
 import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
 
@@ -191,7 +190,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
 
   const schematic = useMemo(() => {
     if (!showFallback) return { routes: [], marker: null, project: null };
-    const built = buildSchematic(geometries, routes.map((route) => route.id), snapshot);
+    const built = buildSchematic(geometries, routes.map((route) => route.id), null);
     if (!built) return { routes: [], marker: null, project: null };
     const byRoute = new Map<string, typeof built.tracks>();
     built.tracks.forEach((track) => byRoute.set(track.routeId, [...(byRoute.get(track.routeId) ?? []), track]));
@@ -204,7 +203,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   return <section className="map-wrapper network-map" aria-labelledby={titleId}>
     <div className="map-heading"><div>
       <h2 id={titleId}><MapTrifoldIcon weight="bold" aria-hidden="true" />Карта всей трамвайной сети</h2>
-      <p>Цвет линии — уровень загрузки. Нажмите линию, чтобы открыть маршрут в мониторинге.</p>
+      <p>Цвет различает маршруты и не обозначает нагрузку. Нажмите линию, чтобы открыть маршрут в мониторинге.</p>
     </div></div>
     <div className="map-stage">
       {showFallback ? <div ref={container} className="map-container network-map-fallback">
@@ -252,11 +251,6 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
         </button>)}</div>
       </div>}
       {selectedStop && <div className="network-selected-caption">Выбрана остановка · {selectedStop.stop_name}</div>}
-      <div className="map-legend" aria-label="Уровни загрузки">
-        <span><i style={{ background: loadColors.low }} /> Низкая</span>
-        <span><i style={{ background: loadColors.medium }} /> Средняя</span>
-        <span><i style={{ background: loadColors.high }} /> Высокая</span>
-      </div>
       <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
       {onSplit && <EdgeSplitHandles onSplit={onSplit} />}
     </div>

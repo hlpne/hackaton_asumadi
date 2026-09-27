@@ -2066,6 +2066,141 @@
         ],
         "title": "MapForecastResponse"
       },
+      "ModelArtifactSummary": {
+        "properties": {
+          "submitted_rows": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Submitted Rows"
+          },
+          "submitted_routes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Submitted Routes"
+          },
+          "displayed_routes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Displayed Routes"
+          },
+          "volume_models": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Volume Models"
+          },
+          "shape_models": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Shape Models"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256"
+          },
+          "verified_at": {
+            "type": "string",
+            "title": "Verified At"
+          },
+          "inference_engines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inference Engines"
+          },
+          "onnx_max_abs_diff": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Onnx Max Abs Diff"
+          },
+          "jvm_max_abs_diff": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Jvm Max Abs Diff"
+          },
+          "jvm_model_calls": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Jvm Model Calls"
+          },
+          "jvm_feature_rows": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Jvm Feature Rows"
+          },
+          "jvm_rounding_differences": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Jvm Rounding Differences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "submitted_rows",
+          "submitted_routes",
+          "displayed_routes",
+          "volume_models",
+          "shape_models",
+          "sha256",
+          "verified_at",
+          "inference_engines",
+          "onnx_max_abs_diff",
+          "jvm_max_abs_diff",
+          "jvm_model_calls",
+          "jvm_feature_rows",
+          "jvm_rounding_differences"
+        ],
+        "title": "ModelArtifactSummary"
+      },
+      "ModelBacktest": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "train_cutoff": {
+            "type": "string",
+            "title": "Train Cutoff"
+          },
+          "forecast_period": {
+            "type": "string",
+            "title": "Forecast Period"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "wape": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Wape"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "train_cutoff",
+          "forecast_period",
+          "method",
+          "score",
+          "wape",
+          "note"
+        ],
+        "title": "ModelBacktest"
+      },
       "ModelCoverage": {
         "properties": {
           "history_from": {
@@ -2182,6 +2317,23 @@
           "validation": {
             "$ref": "#/components/schemas/ModelValidation"
           },
+          "score_history": {
+            "items": {
+              "$ref": "#/components/schemas/ModelScoreStage"
+            },
+            "type": "array",
+            "title": "Score History"
+          },
+          "pipeline": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPipelineStage"
+            },
+            "type": "array",
+            "title": "Pipeline"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/ModelArtifactSummary"
+          },
           "feature_families": {
             "items": {
               "type": "string"
@@ -2213,6 +2365,9 @@
           "value_unit",
           "coverage",
           "validation",
+          "score_history",
+          "pipeline",
+          "artifact",
           "feature_families",
           "limitations",
           "sources"
@@ -2288,6 +2443,46 @@
         ],
         "title": "ModelMetricSlice"
       },
+      "ModelPipelineStage": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "description"
+        ],
+        "title": "ModelPipelineStage"
+      },
+      "ModelScoreStage": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "score"
+        ],
+        "title": "ModelScoreStage"
+      },
       "ModelValidation": {
         "properties": {
           "method": {
@@ -2317,6 +2512,50 @@
             },
             "type": "array",
             "title": "Horizon Buckets"
+          },
+          "platform_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Platform Score"
+          },
+          "score_without_route5": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Without Route5"
+          },
+          "platform_scope": {
+            "type": "string",
+            "title": "Platform Scope"
+          },
+          "backtests": {
+            "items": {
+              "$ref": "#/components/schemas/ModelBacktest"
+            },
+            "type": "array",
+            "title": "Backtests"
+          },
+          "route_wape_october": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetricSlice"
+            },
+            "type": "array",
+            "title": "Route Wape October"
+          },
+          "route_wape_sep_oct": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetricSlice"
+            },
+            "type": "array",
+            "title": "Route Wape Sep Oct"
           }
         },
         "additionalProperties": false,
@@ -2327,7 +2566,12 @@
           "baseline",
           "final",
           "folds",
-          "horizon_buckets"
+          "horizon_buckets",
+          "platform_score",
+          "platform_scope",
+          "backtests",
+          "route_wape_october",
+          "route_wape_sep_oct"
         ],
         "title": "ModelValidation"
       },

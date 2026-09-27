@@ -26,7 +26,7 @@ def test_archived_hourly_values_are_route_validations():
     assert data["aggregation"] == "sum"
     assert data["is_mock"] is False
     assert data["series_key"] == {"route_id": "demo-1", "stop_id": None, "direction_id": None}
-    assert [point["predicted_load"] for point in data["points"][:8]] == [4, 0, 0, 0, 4, 95, 366, 1062]
+    assert [point["predicted_load"] for point in data["points"][:8]] == [3, 0, 0, 0, 4, 95, 365, 1061]
     assert all(point["lower_bound"] is None for point in data["points"])
 
 

@@ -59,13 +59,12 @@ interface YandexMapProps {
   startStopId: string;
   selectedStopId: string;
   focusedPoint: MapForecastPoint | null;
-  colorForValue: (value: number, snapshot: MapForecastResponse) => string;
   onStopSelect: (stopId: string) => void;
   onError: (message: string) => void;
   theme: Theme;
 }
 
-export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, focusedPoint, colorForValue, onStopSelect, onError, theme }: YandexMapProps) {
+export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, focusedPoint, onStopSelect, onError, theme }: YandexMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
   const apiRef = useRef<YMaps3 | null>(null);
@@ -117,8 +116,6 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
     overlays.current = [];
     if (!geometry || !route) return;
 
-    const noDemoService = Boolean(snapshot?.is_mock && snapshot.horizon === "day" &&
-      snapshot.points.length && snapshot.points.every((point) => point.predicted_load === 0));
     const visible = new Set(visibleStopIds.split("|"));
     const points = snapshot?.points.filter((point) =>
       visible.has(point.stop_id) && point.direction_id === geometry.direction_id) ?? [];
@@ -127,13 +124,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
     geometry.lines.forEach((coordinates) => {
       if (coordinates.length < 2) return;
       allCoordinates.push(...coordinates);
-      const middle = coordinates[Math.floor(coordinates.length / 2)];
-      const closest = points.length ? points.reduce((best, point) => {
-        const distance = (point.lon - middle[0]) ** 2 + (point.lat - middle[1]) ** 2;
-        return distance < best.distance ? { point, distance } : best;
-      }, { point: points[0], distance: Infinity }).point : null;
-      const color = noDemoService ? neutralMapColor() : closest && snapshot
-        ? colorForValue(closest.predicted_load, snapshot) : route.color;
+      const color = route.color || neutralMapColor();
       add(new api.YMapFeature({
         geometry: { type: "LineString", coordinates },
         style: { stroke: [{ width: 7, color, opacity: .96 }] },
@@ -144,9 +135,8 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const button = document.createElement("button");
       button.type = "button";
       button.className = `yandex-stop-marker${point.stop_id === startStopId ? " segment-start" : ""}${point.stop_id === selectedStopId ? " selected" : ""}`;
-      button.style.background = noDemoService ? neutralMapColor() : snapshot
-        ? colorForValue(point.predicted_load, snapshot) : route.color;
-      button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name} · прогноз нагрузки ${point.predicted_load.toLocaleString("ru-RU")}`;
+      button.style.background = route.color || neutralMapColor();
+      button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => selectStopRef.current(point.stop_id));
       add(new api.YMapMarker({ coordinates: [point.lon, point.lat] }, button));
@@ -159,7 +149,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const lat = allCoordinates.map((point) => point[1]);
       map.update({ location: { bounds: [[Math.min(...lon), Math.min(...lat)], [Math.max(...lon), Math.max(...lat)]] } });
     }
-  }, [ready, mapGeneration, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, colorForValue]);
+  }, [ready, mapGeneration, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId]);
 
   useEffect(() => {
     if (!ready || !mapRef.current || !focusedPoint || focusedPoint.route_id !== route?.id ||

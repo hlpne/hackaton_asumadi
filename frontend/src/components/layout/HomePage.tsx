@@ -14,7 +14,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
           <h1 id="home-title">Прогноз валидаций трамвайных маршрутов</h1>
           <p className="home-lead">
             Модель прогнозирует число успешных валидаций за час по всему маршруту
-            на 01.11–31.12.2025. Карта остановок показывает отдельный демонстрационный индекс.
+            на 01.11–31.12.2025. Карта показывает расположение маршрутов и остановок без расчёта нагрузки по остановкам.
           </p>
           <div className="home-actions">
             <button type="button" onClick={() => onNavigate("details")}>Изучить маршрут</button>
@@ -34,14 +34,14 @@ export function HomePage({ onNavigate }: HomePageProps) {
           <h2 id="project-title">Маршрутный прогноз и схема остановок</h2>
           <p>
             Прогноз из модели доступен для девяти маршрутов. Остановки помогают изучать
-            схему движения, но их демонстрационные показатели не являются результатом модели.
+            схему движения; модель не рассчитывает отдельные показатели для остановок.
           </p>
         </div>
         <div className="home-values">
           <article className="home-value">
             <span className="home-value-number">01</span>
             <h3>Изучить схему</h3>
-            <p>Карта и рейтинги остановок остаются демонстрационной визуализацией.</p>
+            <p>Карта показывает маршруты и остановки. Числа валидаций относятся к маршрутам целиком.</p>
           </article>
           <article className="home-value">
             <span className="home-value-number">02</span>
@@ -60,14 +60,14 @@ export function HomePage({ onNavigate }: HomePageProps) {
         <div className="home-section-heading">
           <p className="eyebrow">ИССЛЕДОВАТЬ ДАННЫЕ</p>
           <h2 id="home-explore-title">Выберите масштаб просмотра</h2>
-          <p>Начните с модельного прогноза отдельного маршрута или откройте демонстрационную карту сети.</p>
+          <p>Начните с прогноза отдельного маршрута или сравните прогнозные валидации всей сети.</p>
         </div>
         <div className="home-explore-grid">
           <article className="home-explore-card">
             <MapPinIcon weight="fill" aria-hidden="true" />
             <div>
               <h3>Один маршрут</h3>
-              <p>Прогноз валидаций всего маршрута и демонстрационная схема остановок.</p>
+              <p>Прогноз валидаций всего маршрута и схема его остановок.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("details")}>Открыть детализацию <span aria-hidden="true">→</span></button>
             </div>
           </article>
@@ -75,7 +75,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <ChartBarIcon weight="bold" aria-hidden="true" />
             <div>
               <h3>Вся сеть</h3>
-              <p>Демонстрационная карта сети, рейтинги остановок и общие показатели.</p>
+              <p>Карта сети, рейтинг маршрутов и сумма прогнозных валидаций.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("analytics")}>Открыть аналитику <span aria-hidden="true">→</span></button>
             </div>
           </article>

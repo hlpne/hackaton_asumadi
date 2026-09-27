@@ -51,6 +51,7 @@ function failureMessage(failure: unknown): string {
 function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, onRemove, onSplit, mode }: SplitMapPaneProps) {
   const [stops, setStops] = useState<RouteStop[]>([]);
   const [snapshot, setSnapshot] = useState<MapForecastResponse | null>(null);
+  const [networkRouteForecasts, setNetworkRouteForecasts] = useState<ForecastResponse[]>([]);
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [forecastBusy, setForecastBusy] = useState(false);
   const [forecastError, setForecastError] = useState("");
@@ -95,16 +96,25 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     const timestamp = snapshotTimestamp(settledConfig.date, settledConfig.horizon);
     setBusy(true);
     setError("");
-    getMapForecast(mode === "details" ? {
+    const mapRequest = getMapForecast(mode === "details" ? {
       route_id: settledConfig.routeId, direction_id: settledConfig.directionId, horizon: settledConfig.horizon,
       timestamp, forecast_origin: timestamp,
-    } : { horizon: settledConfig.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setSnapshot(mode === "analytics" ? supportedNetworkSnapshot(data) : data); })
+    } : { horizon: settledConfig.horizon, timestamp, forecast_origin: timestamp }, controller.signal);
+    const range = modelPeriodRequest(settledConfig.date, settledConfig.horizon);
+    const forecasts = mode === "analytics" ? Promise.all(routes.map((route) => getForecast({
+      route_id: route.id, horizon: settledConfig.horizon, resolution: range.resolution,
+      from: range.from, to: range.to, forecast_origin: range.from,
+    }, controller.signal))) : Promise.resolve([]);
+    Promise.all([mapRequest, forecasts])
+      .then(([data, values]) => { if (!controller.signal.aborted) {
+        setSnapshot(mode === "analytics" ? supportedNetworkSnapshot(data) : data);
+        setNetworkRouteForecasts(values);
+      } })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
   }, [config.routeId, config.directionId, config.horizon, config.date,
-    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, retry, mode]);
+    settledConfig.routeId, settledConfig.directionId, settledConfig.horizon, settledConfig.date, retry, mode, routes]);
 
   useEffect(() => {
     if (mode !== "details" || !stops.length) return;
@@ -141,7 +151,7 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     const selectedStop = snapshot?.points.find((point) => point.route_id === config.routeId && point.stop_id === config.stopId) ?? null;
     return <section className="split-pane split-pane--network" aria-label={`Окно сети ${index + 1}`}>
       <RankingsPanel routes={routes} selectedRouteId={config.routeId} selectedStop={selectedStop}
-        networkData={snapshot} networkBusy={busy} networkError={error} onRetry={() => setRetry((value) => value + 1)}
+        networkData={snapshot} routeForecasts={networkRouteForecasts} networkBusy={busy} networkError={error} onRetry={() => setRetry((value) => value + 1)}
         onSelectRoute={(routeId) => { setStops([]); onChange({ ...config, routeId, stopId: "" }); }}
         onSelectStop={(point) => onChange({ ...config, routeId: point.route_id, stopId: point.stop_id })}
         onSplit={onSplit} theme={theme}

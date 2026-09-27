@@ -17,7 +17,7 @@ from app.schemas import ForecastPoint, ForecastRequest, ForecastResponse, Horizo
 DATA_PATH = ROOT / "backend" / "data" / "tram_final_submission.csv"
 FIRST_DAY = date(2025, 11, 1)
 LAST_DAY = date(2025, 12, 31)
-MODEL_VERSION = "tram-final-2025-0.90447"
+MODEL_VERSION = "tram-final-2025-0.90461"
 SUPPORTED_ROUTES = frozenset({"1", "7", "11", "12", "17", "25", "26", "28", "50"})
 
 

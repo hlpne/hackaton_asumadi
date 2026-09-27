@@ -9,4 +9,5 @@ test("current UI exposes the nine routes present in training labels", () => {
   ]);
   const catalog = [...SUPPORTED_ROUTE_IDS, "demo-5", "demo-t1"].map((id) => ({ id, name: id, color: "#000000" }));
   assert.deepEqual(supportedRoutes(catalog).map((route) => route.id), [...SUPPORTED_ROUTE_IDS]);
+  assert.equal(supportedRoutes([{ id: "demo-1", name: "Трамвай 1 · демопрогноз", color: "#000000" }])[0].name, "Трамвай 1");
 });

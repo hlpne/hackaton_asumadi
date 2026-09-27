@@ -1,22 +1,19 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
-import { ChartBarIcon, MapPinIcon, TramIcon, TrophyIcon } from "@phosphor-icons/react";
-import type { MapForecastPoint, MapForecastResponse, Route } from "../../types";
-import { snapshotPeriod } from "../../constants";
-import { rankNetwork } from "../../networkRanking";
+import { ChartBarIcon, TramIcon, TrophyIcon } from "@phosphor-icons/react";
+import type { ForecastResponse, MapForecastPoint, MapForecastResponse, Route } from "../../types";
 import { NetworkMap } from "../map/NetworkMap";
 import type { Theme } from "../../theme";
 import { WheelPicker } from "../layout/WheelPicker";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
 import { FloatingPanelControls, useFloatingPanel } from "../layout/FloatingPanelControls";
-import { downloadNetworkSnapshotCsv } from "../../forecastCsv";
-
-type RankingView = "routes" | "stops";
+import { downloadNetworkValidationsCsv } from "../../forecastCsv";
 
 interface RankingsPanelProps {
   routes: Route[];
   selectedRouteId: string;
   selectedStop: MapForecastPoint | null;
   networkData: MapForecastResponse | null;
+  routeForecasts: ForecastResponse[];
   networkBusy: boolean;
   networkError: string;
   onSelectRoute: (routeId: string) => void;
@@ -29,26 +26,20 @@ interface RankingsPanelProps {
 const timestampFormatter = new Intl.DateTimeFormat("ru-RU", {
   timeZone: "Europe/Moscow", day: "2-digit", month: "long", year: "numeric",
 });
-const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
+const valueFormatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 
-export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selectedStop, networkData, networkBusy, networkError,
-  onSelectRoute, onSelectStop, onRetry, theme, controls, onSplit }: RankingsPanelProps) {
-  const [view, setView] = useState<RankingView>("routes");
+export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selectedStop, networkData, routeForecasts,
+  networkBusy, networkError, onSelectRoute, onRetry, theme, controls, onSplit }: RankingsPanelProps) {
   const panel = useFloatingPanel();
   const titleId = useId();
   const [rankedRoute, setRankedRoute] = useState("");
-  const [rankedStop, setRankedStop] = useState("");
-  const network = useMemo(() => networkData ? rankNetwork(networkData) : null, [networkData]);
-  const routes = network?.routes ?? [];
-  const stops = network?.stops ?? [];
-  const average = routes.length ? routes.reduce((sum, route) => sum + route.averageLoad, 0) / routes.length : null;
-  const topAverage = routes[0]?.averageLoad ?? 0;
-  const hasPositiveLoad = topAverage > 0;
-  const period = snapshotPeriod[networkData?.horizon ?? "day"];
-  const title = view === "routes" ? `Маршруты · ${routes.length}` : "Остановки · Топ-10";
+  const routes = useMemo(() => routeForecasts.map((forecast) => {
+    const id = forecast.series_key.route_id;
+    return { id, name: catalogRoutes.find((route) => route.id === id)?.name.replace(" · демопрогноз", "") ?? id,
+      total: forecast.points.reduce((sum, point) => sum + point.predicted_load, 0) };
+  }).sort((left, right) => right.total - left.total || left.id.localeCompare(right.id, "ru", { numeric: true })), [routeForecasts, catalogRoutes]);
+  const total = routes.reduce((sum, route) => sum + route.total, 0);
   const routeChoice = routes.find((route) => route.id === rankedRoute) ?? routes[0];
-  const stopKey = (point: MapForecastPoint) => `${point.route_id}/${point.direction_id}/${point.stop_id}`;
-  const stopChoice = stops.find((point) => stopKey(point) === rankedStop) ?? stops[0];
 
   if (networkBusy && !networkData) return <p className="network-status" role="status">Загружаем аналитику сети…</p>;
   if (!networkBusy && networkError) return <div className="top-panel-error network-error" role="alert">
@@ -60,50 +51,33 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
     <div ref={panel.containerRef} className={`network-workspace${panel.hidden ? " floating-panel-hidden" : ""}`} style={panel.style}>
       <NetworkMap routes={catalogRoutes} snapshot={networkData} theme={theme} onSelectRoute={onSelectRoute}
         selectedRouteId={selectedRouteId} selectedStop={selectedStop} onSplit={onSplit} />
-
       <FloatingPanelControls panel={panel} />
-
-      <aside className="network-side-panel" aria-label="Параметры и зоны внимания сети">
+      <aside className="network-side-panel" aria-label="Параметры и прогноз сети">
         {controls}
         <div className="network-heading">
-          <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ · ДЕМОИНДЕКС</p><h2>Зоны внимания</h2></div>
+          <div><p className="eyebrow">ПРОГНОЗ МОДЕЛИ · ВСЕ МАРШРУТЫ</p><h2>Сводка сети</h2></div>
           <time dateTime={networkData.timestamp}>{timestampFormatter.format(new Date(networkData.timestamp))}</time>
         </div>
-
         <div className="network-metrics">
           <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
-          <article><div className="network-metric-heading"><MapPinIcon weight="fill" aria-hidden="true" /><span>Остановок</span></div><strong>{networkData.points.length}</strong></article>
-          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний демоиндекс</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
-          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Лидер деморейтинга</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
+          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Валидаций за период</span></div><strong>{valueFormatter.format(total)}</strong></article>
+          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Больше всего валидаций</span></div><strong className="network-metric-name">{routes[0]?.name ?? "—"}</strong></article>
+          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Валидаций на лидере</span></div><strong>{routes[0] ? valueFormatter.format(routes[0].total) : "—"}</strong></article>
         </div>
-
         <section className="top-panel rankings-panel" aria-labelledby={titleId}>
-          <div className="top-panel-heading"><div><p className="eyebrow">ДЕМОНСТРАЦИОННЫЙ ИНДЕКС</p><h2 id={titleId}>{title}</h2></div></div>
-          <div className="ranking-views" role="group" aria-label="Выберите вид списка">
-            <button type="button" className={`ranking-view${view === "routes" ? " ranking-view--active" : ""}`}
-              aria-pressed={view === "routes"} onClick={() => setView("routes")}>Маршруты</button>
-            <button type="button" className={`ranking-view${view === "stops" ? " ranking-view--active" : ""}`}
-              aria-pressed={view === "stops"} onClick={() => setView("stops")}>Остановки</button>
-          </div>
+          <div className="top-panel-heading"><div><p className="eyebrow">ВАЛИДАЦИИ ПО МАРШРУТАМ</p><h2 id={titleId}>Маршруты · {routes.length}</h2></div></div>
           <div className="ranking-content" aria-live="polite">
-            <p className="ranking-description">{view === "routes"
-              ? `Средний демонстрационный индекс остановок каждого маршрута ${period}.`
-              : `Остановки с самым высоким демонстрационным индексом ${period}.`}</p>
-            {!hasPositiveLoad && <p className="top-panel-status">Для выбранной даты нет положительного прогноза.</p>}
-            {hasPositiveLoad && (view === "routes" ? routes.length > 0 : stops.length > 0) && <div className="ranking-wheel-layout">
-              {view === "routes" ? <WheelPicker inline label="Рейтинг маршрутов" value={routeChoice?.id ?? ""} onChange={setRankedRoute}
-                options={routes.map((route) => ({ value: route.id, label: `${route.rank}. ${route.name.replace(" · демопрогноз", "")}`,
-                  meta: valueFormatter.format(route.averageLoad), color: catalogRoutes.find((item) => item.id === route.id)?.color }))} />
-                : <WheelPicker inline label="Рейтинг остановок" value={stopChoice ? stopKey(stopChoice) : ""} onChange={setRankedStop}
-                  options={stops.map((point) => ({ value: stopKey(point), label: `${point.rank}. ${point.stop_name}`,
-                    meta: valueFormatter.format(point.predicted_load) }))} />}
+            <p className="ranking-description">Рейтинг по сумме прогнозных валидаций всего маршрута за выбранный период. Это не заполняемость вагонов и не прогноз по остановкам.</p>
+            {routes.length > 0 && <div className="ranking-wheel-layout">
+              <WheelPicker inline label="Рейтинг маршрутов" value={routeChoice?.id ?? ""} onChange={setRankedRoute}
+                options={routes.map((route, index) => ({ value: route.id, label: `${index + 1}. ${route.name}`,
+                  meta: `${valueFormatter.format(route.total)} валидаций`, color: catalogRoutes.find((item) => item.id === route.id)?.color }))} />
             </div>}
-            <button type="button" className="network-download" disabled={!networkData.points.length}
-              title="CSV с прогнозом по всем остановкам всех маршрутов за выбранный срез"
-              onClick={() => downloadNetworkSnapshotCsv(networkData)}>↓ Скачать сводку по всем маршрутам</button>
+            <button type="button" className="network-download" disabled={!routeForecasts.length}
+              title="CSV с реальными прогнозами валидаций по маршрутам"
+              onClick={() => downloadNetworkValidationsCsv(routeForecasts)}>↓ Скачать прогноз сети CSV</button>
           </div>
-          <p className="top-panel-note">{networkData.is_mock ? "Демонстрационные данные; показатель не равен заполненности салона." : "Порог перегрузки не задан."}
-            {" "}Источник: /forecast/map · {networkData.model_version}.</p>
+          <p className="top-panel-note">Источник: архив модели {routeForecasts[0]?.model_version ?? "—"}. Карта показывает геометрию маршрутов, цвет линии не обозначает нагрузку.</p>
         </section>
       </aside>
     </div>

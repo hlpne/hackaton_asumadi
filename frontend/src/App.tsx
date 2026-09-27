@@ -80,6 +80,7 @@ export default function App() {
   const [forecastError, setForecastError] = useState("");
   const [forecastBusy, setForecastBusy] = useState(false);
   const [networkForecast, setNetworkForecast] = useState<MapForecastResponse | null>(null);
+  const [networkRouteForecasts, setNetworkRouteForecasts] = useState<ForecastResponse[]>([]);
   const [networkError, setNetworkError] = useState("");
   const [networkBusy, setNetworkBusy] = useState(false);
   const [networkRouteFocused, setNetworkRouteFocused] = useState(false);
@@ -243,27 +244,36 @@ export default function App() {
   }, [page, splitCount, settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, retry]);
 
   useEffect(() => {
-    if (page !== "analytics") return;
+    if (page !== "analytics" || !routes.length) return;
     if (settledFilters.horizon !== horizon || settledFilters.date !== date) {
       setNetworkBusy(false);
       return;
     }
     if (!settledFilters.date) {
       setNetworkForecast(null);
+      setNetworkRouteForecasts([]);
       setNetworkError("");
       setNetworkBusy(false);
       return;
     }
     const controller = new AbortController();
     const timestamp = snapshotTimestamp(settledFilters.date, settledFilters.horizon);
+    const range = modelPeriodRequest(settledFilters.date, settledFilters.horizon);
     setNetworkBusy(true);
     setNetworkError("");
-    getMapForecast({ horizon: settledFilters.horizon, timestamp, forecast_origin: timestamp }, controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setNetworkForecast(supportedNetworkSnapshot(data)); })
+    Promise.all([
+      getMapForecast({ horizon: settledFilters.horizon, timestamp, forecast_origin: timestamp }, controller.signal),
+      Promise.all(routes.map((route) => getForecast({ route_id: route.id, horizon: settledFilters.horizon,
+        resolution: range.resolution, from: range.from, to: range.to, forecast_origin: range.from }, controller.signal))),
+    ])
+      .then(([mapData, forecasts]) => { if (!controller.signal.aborted) {
+        setNetworkForecast(supportedNetworkSnapshot(mapData));
+        setNetworkRouteForecasts(forecasts);
+      } })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [page, settledFilters.horizon, settledFilters.date, horizon, date, retry]);
+  }, [page, settledFilters.horizon, settledFilters.date, horizon, date, retry, routes]);
 
   return (
     <>
@@ -353,6 +363,7 @@ export default function App() {
           // The network view has no stop filter; a stop chosen in Monitoring must not carry over.
           selectedStop={null}
           networkData={networkForecast}
+          routeForecasts={networkRouteForecasts}
           networkBusy={networkBusy}
           networkError={networkError}
           onSelectRoute={(id) => {

@@ -1,6 +1,5 @@
 import { lazy, Suspense, useId, useState, type ReactNode } from "react";
 import { ArrowRightIcon, ChartBarIcon, ClockIcon, MapPinIcon, TramIcon, UsersThreeIcon } from "@phosphor-icons/react";
-import { loadColor, loadLabels, loadLevel } from "../../loadLevel";
 import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
 import type { RouteSegment } from "../../routeSegment";
 import { MapView } from "../map/MapView";
@@ -45,14 +44,13 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
   const summaryId = useId();
   const direction = focusedPoint?.direction_id ?? segment?.directionId ?? directionId;
   const points = snapshot?.points.filter((point) => point.direction_id === direction) ?? [];
-  const ranked = points.filter((point) => !snapshot?.is_mock || point.predicted_load > 0)
-    .sort((a, b) => b.predicted_load - a.predicted_load || a.sequence - b.sequence);
-  const peakStop = ranked[0];
+  const orderedStops = [...points].sort((a, b) => a.sequence - b.sequence);
   const modelPoints = forecast?.value_unit === "validations" && !forecast.is_mock ? forecast.points : [];
   const modelTotal = modelPoints.length ? modelPoints.reduce((sum, point) => sum + point.predicted_load, 0) : null;
   const modelPeak = modelPoints.length ? Math.max(...modelPoints.map((point) => point.predicted_load)) : null;
   const visibleStopCount = segment?.stops.length ?? stops.filter((stop) => stop.direction_id === direction).length;
-  const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
+  const peakPoint = modelPoints.reduce<(typeof modelPoints)[number] | null>((peak, point) =>
+    !peak || point.predicted_load > peak.predicted_load ? point : peak, null);
   const firstForecastDate = forecast?.points[0]?.timestamp;
   const lastForecastDate = forecast?.points.at(-1)?.timestamp;
   const firstForecastDay = firstForecastDate ? date.format(new Date(firstForecastDate)) : "";
@@ -81,8 +79,8 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
         <small>Модель · весь маршрут · {horizon === "day" ? "за сутки" : "за период"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пик валидаций</span><strong>{modelPeak === null ? "—" : number.format(modelPeak)}</strong>
         <small>Модель · {horizon === "day" ? "за час" : "за день"}</small></div></article>
-      <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановка · демо</span><strong className="detail-metric-name">{peakStop?.stop_name ?? "—"}</strong>
-        <small>{peakStop ? `Демоиндекс: ${number.format(peakStop.predicted_load)}` : "Нет данных для среза"}</small></div></article>
+      <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковый интервал</span><strong className="detail-metric-name">{peakPoint ? new Date(peakPoint.timestamp).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", hour: horizon === "day" ? "2-digit" : undefined, minute: horizon === "day" ? "2-digit" : undefined }) : "—"}</strong>
+        <small>По всему маршруту · {horizon === "day" ? "час" : "день"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановок</span><strong>{visibleStopCount || "—"}</strong>
         <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
@@ -102,7 +100,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       {!forecastBusy && !forecastError && forecast && (forecast.points.length
         ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} theme={theme} /></Suspense>
         : <p className="detail-forecast-status">Для выбранного периода нет точек прогноза.</p>)}
-      <p className="detail-forecast-status">Карта и показатели по остановкам — демонстрационный индекс: модель не прогнозирует отдельные остановки.</p>
+      <p className="detail-forecast-status">Модель прогнозирует валидации по всему маршруту. Остановки на карте показаны для навигации; прогнозов по ним нет.</p>
       </section>
 
       <section className="route-summary" aria-labelledby={summaryId}>
@@ -120,20 +118,19 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
           <div><strong>{snapshot ? date.format(new Date(snapshot.timestamp)) : "—"}</strong><span>дата прогноза</span></div>
         </div>
         <div className="route-summary-list-heading">
-          <h3>Остановки · демоданные</h3>
+          <h3>Остановки маршрута</h3>
           <button type="button" className="text-button" onClick={() => setAllStopsOpen(true)} disabled={!stops.length}>Все остановки <ArrowRightIcon weight="bold" aria-hidden="true" /></button>
         </div>
-        {ranked.length ? <ol className="route-summary-list">
-          {ranked.slice(0, 5).map((point) => <li key={`${point.direction_id}/${point.stop_id}`}>
+        {orderedStops.length ? <ol className="route-summary-list">
+          {orderedStops.slice(0, 5).map((point) => <li key={`${point.direction_id}/${point.stop_id}`}>
             <button type="button" className={`route-summary-row${selectedStopId === point.stop_id ? " route-summary-row--selected" : ""}`}
               onClick={() => onSelectStop(point)} aria-pressed={selectedStopId === point.stop_id}>
               <span className="route-summary-name">{point.stop_name}</span>
-              <span className="route-summary-bar"><i style={{ width: `${Math.max(4, point.predicted_load / maxLoad * 100)}%`, background: snapshot ? loadColor(point.predicted_load, snapshot) : undefined }} /></span>
-              <strong>{number.format(point.predicted_load)}</strong>
+              <span className="route-summary-position">№ {point.sequence + 1}</span>
             </button>
           </li>)}
-        </ol> : <p className="route-summary-empty">{busy ? "Загружаем остановки…" : "Нет прогноза для выбранной даты."}</p>}
-        {peakStop && snapshot && <p className="route-summary-note">{loadLabels[loadLevel(peakStop.predicted_load, snapshot)]} уровень демонстрационного индекса. Нажмите остановку, чтобы найти её на карте.</p>}
+        </ol> : <p className="route-summary-empty">{busy ? "Загружаем остановки…" : "Нет остановок для выбранного маршрута."}</p>}
+        {orderedStops.length > 0 && <p className="route-summary-note">Нажмите остановку, чтобы найти её на карте. Числа валидаций доступны только для маршрута целиком.</p>}
       </section>
       </aside>
     </div>
