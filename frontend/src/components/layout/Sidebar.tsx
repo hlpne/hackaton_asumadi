@@ -42,8 +42,8 @@ export function Sidebar({
   className = "",
 }: SidebarProps) {
   const fromStop = stops.find((stop) => stop.id === fromStopId);
-  const allStops = Array.from(new Map(stops.map((stop) => [stop.name, stop])).values())
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const allStops = [...stops].sort((a, b) => a.name.localeCompare(b.name, "ru") ||
+    a.direction_id - b.direction_id || a.sequence - b.sequence);
   const routeOptions: WheelOption[] = routes.map((route) => ({
     value: route.id,
     label: route.name.replace(" · демопрогноз", ""),
@@ -52,11 +52,12 @@ export function Sidebar({
   }));
   const stopOptions: WheelOption[] = [
     { value: "", label: "Не выбрана", meta: "Весь маршрут" },
-    ...allStops.map((stop) => ({ value: stop.id, label: stop.name, meta: `№ ${stop.sequence + 1}` })),
+    ...allStops.map((stop) => ({ value: stop.id, label: stop.name,
+      meta: `Напр. ${stop.direction_id + 1} · № ${stop.sequence + 1}` })),
   ];
   const destinationOptions: WheelOption[] = [
     { value: "", label: fromStop ? "Весь остаток маршрута" : "Сначала выберите начало" },
-    ...allStops.filter((stop) => stop.id !== fromStopId)
+    ...allStops.filter((stop) => stop.id !== fromStopId && stop.direction_id === fromStop?.direction_id)
       .map((stop) => ({ value: stop.id, label: stop.name, meta: `№ ${stop.sequence + 1}` })),
   ];
 

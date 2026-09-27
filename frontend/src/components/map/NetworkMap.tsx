@@ -7,7 +7,7 @@ import { buildNetworkLines } from "./networkMapLines";
 import { buildSchematic, VIEW_HEIGHT, VIEW_WIDTH, type SchematicRun } from "./networkSchematic";
 import type { Theme } from "../../theme";
 import { loadColors } from "../../loadLevel";
-import { findRouteIntersections, type RouteIntersection } from "./routeIntersections";
+import { routesNearPoint } from "./routeIntersections";
 import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
 
 const geometryCache = new Map<string, RouteGeometry>();
@@ -39,26 +39,40 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
   const overlays = useRef<MapChild[]>([]);
   const selectRouteRef = useRef(onSelectRoute);
   const [ready, setReady] = useState(false);
+  const [mapGeneration, setMapGeneration] = useState(0);
   const [geometries, setGeometries] = useState<RouteGeometry[]>([]);
   const [geometryError, setGeometryError] = useState("");
   const [mapError, setMapError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [hoveredRoute, setHoveredRoute] = useState<{ id: string; x: number; y: number } | null>(null);
-  const [intersectionChoice, setIntersectionChoice] = useState<RouteIntersection | null>(null);
+  const [hoveredRoute, setHoveredRoute] = useState<{ routeIds: string[]; x: number; y: number } | null>(null);
+  const dismissHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const apiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY?.trim() ?? "";
   const routeIds = routes.map((route) => route.id).join("|");
   const coloredLines = useMemo(() => buildNetworkLines(geometries, routes, snapshot), [geometries, routes, snapshot]);
-  const intersections = useMemo(() => findRouteIntersections(geometries), [geometries]);
   const routeById = useMemo(() => new Map(routes.map((route) => [route.id, route])), [routes]);
   const routeNumbers = useMemo(() => new Map(routes.map((route) => [
     route.id, route.name.split("·")[0].replace(/^Трамвай\s+/i, "").trim(),
   ])), [routes]);
-  const showHover = (id: string, event: MouseEvent) => {
+  const cancelDismiss = () => {
+    if (dismissHoverTimer.current) clearTimeout(dismissHoverTimer.current);
+    dismissHoverTimer.current = null;
+  };
+  const scheduleDismiss = () => {
+    cancelDismiss();
+    dismissHoverTimer.current = setTimeout(() => setHoveredRoute(null), 220);
+  };
+  const showHover = (id: string, event: MouseEvent, nearbyRouteIds: string[]) => {
     const bounds = container.current?.getBoundingClientRect();
     if (!bounds) return;
-    setHoveredRoute({ id, x: Math.min(event.clientX - bounds.left + 12, bounds.width - 70),
-      y: Math.max(event.clientY - bounds.top - 36, 8) });
+    cancelDismiss();
+    const routeIds = [...new Set([id, ...nearbyRouteIds])].sort((a, b) =>
+      (routeById.get(a)?.name ?? a).localeCompare(routeById.get(b)?.name ?? b, "ru", { numeric: true }));
+    const x = Math.max(8, Math.min(event.clientX - bounds.left + 14, bounds.width - 240));
+    const y = Math.max(8, Math.min(event.clientY - bounds.top + 14, bounds.height - 54 - routeIds.length * 39));
+    setHoveredRoute({ routeIds, x, y });
   };
+
+  useEffect(() => () => cancelDismiss(), []);
 
   useEffect(() => { selectRouteRef.current = onSelectRoute; }, [onSelectRoute]);
 
@@ -106,6 +120,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
       map.addChild(new api.YMapDefaultFeaturesLayer({}));
       mapRef.current = map;
       apiRef.current = api;
+      setMapGeneration((generation) => generation + 1);
       setReady(true);
     }).catch((failure: unknown) => {
       if (!cancelled) setMapError(failure instanceof Error ? failure.message : "Не удалось загрузить карту");
@@ -138,24 +153,19 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
         geometry: { type: "MultiLineString", coordinates: group.lines },
         style: { stroke: [{ width: selectedRouteId === group.routeId ? 5.5 : 4,
           color: group.color, opacity: selectedRouteId && selectedRouteId !== group.routeId ? .23 : .9 }] },
-        onMouseEnter: (event: MouseEvent) => showHover(group.routeId, event),
-        onMouseLeave: () => setHoveredRoute(null),
+        onMouseEnter: (event: MouseEvent, mapEvent: { coordinates?: LngLat }) => {
+          const coordinate = mapEvent?.coordinates;
+          const nearby = coordinate ? routesNearPoint(geometries, [0, 0], (lon, lat) => [
+            (lon - coordinate[0]) * Math.cos(coordinate[1] * Math.PI / 180) * 111320,
+            (lat - coordinate[1]) * 111320,
+          ], 60) : [];
+          showHover(group.routeId, event, nearby);
+        },
+        onMouseLeave: scheduleDismiss,
         onClick: () => selectRouteRef.current(group.routeId),
       });
       map.addChild(feature);
       overlays.current.push(feature);
-    });
-    intersections.forEach((intersection) => {
-      const marker = document.createElement("button");
-      marker.type = "button";
-      marker.className = "network-intersection-marker";
-      marker.textContent = String(intersection.routeIds.length);
-      marker.title = `Выбрать один из ${intersection.routeIds.length} маршрутов`;
-      marker.setAttribute("aria-label", marker.title);
-      marker.addEventListener("click", () => setIntersectionChoice(intersection));
-      const child = new api.YMapMarker({ coordinates: intersection.coordinate }, marker);
-      map.addChild(child);
-      overlays.current.push(child);
     });
     if (selectedStop) {
       const marker = document.createElement("button");
@@ -171,21 +181,21 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
     if (Number.isFinite(minLon)) {
       map.update({ location: { bounds: [[minLon, minLat], [maxLon, maxLat]] as [LngLat, LngLat] } });
     }
-  }, [ready, coloredLines, intersections, selectedRouteId, selectedStop]);
+  }, [ready, mapGeneration, coloredLines, geometries, selectedRouteId, selectedStop]);
 
   useEffect(() => {
     if (ready && selectedStop) mapRef.current?.update({ location: { center: [selectedStop.lon, selectedStop.lat], zoom: 14 } });
-  }, [ready, selectedStop]);
+  }, [ready, mapGeneration, selectedStop]);
 
   const schematic = useMemo(() => {
     const built = buildSchematic(geometries, routes.map((route) => route.id), snapshot);
-    if (!built) return { routes: [], marker: null };
+    if (!built) return { routes: [], marker: null, project: null };
     const byRoute = new Map<string, typeof built.tracks>();
     built.tracks.forEach((track) => byRoute.set(track.routeId, [...(byRoute.get(track.routeId) ?? []), track]));
     // The selected route is drawn last so it stays on top where lines cross.
     const ordered = [...byRoute].sort(([a], [b]) => Number(a === selectedRouteId) - Number(b === selectedRouteId));
     const marker = selectedStop ? built.project(selectedStop.lon, selectedStop.lat) : null;
-    return { routes: ordered.map(([routeId, tracks]) => ({ routeId, tracks })), marker };
+    return { routes: ordered.map(([routeId, tracks]) => ({ routeId, tracks })), marker, project: built.project };
   }, [geometries, routes, snapshot, selectedRouteId, selectedStop]);
 
   const showFallback = !apiKey || Boolean(mapError);
@@ -206,8 +216,18 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
               aria-label={`Маршрут ${routeNumbers.get(routeId) ?? routeId}`}
               onClick={() => onSelectRoute(routeId)}
               onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelectRoute(routeId); }}
-              onMouseMove={(event) => showHover(routeId, event.nativeEvent)}
-              onMouseLeave={() => setHoveredRoute(null)}>
+              onMouseMove={(event) => {
+                const svg = event.currentTarget.ownerSVGElement;
+                const matrix = svg?.getScreenCTM();
+                if (!svg || !matrix || !schematic.project) return;
+                const cursor = svg.createSVGPoint();
+                cursor.x = event.clientX;
+                cursor.y = event.clientY;
+                const point = cursor.matrixTransform(matrix.inverse());
+                const nearby = routesNearPoint(geometries, [point.x, point.y], schematic.project, 8);
+                showHover(routeId, event.nativeEvent, nearby);
+              }}
+              onMouseLeave={scheduleDismiss}>
               <title>Маршрут {routeNumbers.get(routeId) ?? routeId}</title>
               {tracks.map((track, index) => <path key={`c${index}`} className="network-route-casing" d={track.d}
                 style={{ strokeWidth: selected ? CASING + 1 : CASING }} />)}
@@ -221,22 +241,20 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
         </svg>}
         {!loading && !schematic.routes.length && <p>Нет линий маршрутов для отображения.</p>}
       </div> : <div ref={container} className="map-container" aria-label="Карта Яндекса со всеми трамвайными маршрутами" />}
-      {hoveredRoute && <div className="map-route-tooltip" style={{ left: hoveredRoute.x, top: hoveredRoute.y }} role="status">
-        Маршрут {routeNumbers.get(hoveredRoute.id) ?? hoveredRoute.id} · открыть
-      </div>}
-      {selectedStop && <div className="network-selected-caption">Выбрана остановка · {selectedStop.stop_name}</div>}
-      {intersectionChoice && <div className="network-route-choice" role="dialog" aria-label="Выберите маршрут в точке пересечения">
-        <div><strong>Маршруты в этой точке</strong><button type="button" aria-label="Закрыть" onClick={() => setIntersectionChoice(null)}>×</button></div>
-        <p>Линии проходят рядом. Уточните, какой маршрут открыть.</p>
-        <div>{intersectionChoice.routeIds.map((id) => <button key={id} type="button" onClick={() => onSelectRoute(id)}>
+      {hoveredRoute && <div className="map-route-tooltip" style={{ left: hoveredRoute.x, top: hoveredRoute.y }}
+        onMouseEnter={cancelDismiss} onMouseLeave={scheduleDismiss}>
+        <strong>{hoveredRoute.routeIds.length > 1 ? "Маршруты на этом участке" : "Маршрут на этом участке"}</strong>
+        <div className="map-route-tooltip-list">{hoveredRoute.routeIds.map((id) => <button key={id} type="button"
+          onClick={() => { cancelDismiss(); setHoveredRoute(null); onSelectRoute(id); }}>
           <i style={{ background: routeById.get(id)?.color }} aria-hidden="true" />
-          {routeById.get(id)?.name.replace(" · демопрогноз", "") ?? id}
+          {routeById.get(id)?.name.replace(" · демопрогноз", "") ?? `Маршрут ${routeNumbers.get(id) ?? id}`}
         </button>)}</div>
       </div>}
+      {selectedStop && <div className="network-selected-caption">Выбрана остановка · {selectedStop.stop_name}</div>}
       <div className="map-legend" aria-label="Уровни загрузки">
-        <span><i style={{ background: loadColors.low }} /> Низкая{snapshot.value_unit === "demo_index" ? " (< 35)" : ""}</span>
-        <span><i style={{ background: loadColors.medium }} /> Средняя{snapshot.value_unit === "demo_index" ? " (35–54)" : ""}</span>
-        <span><i style={{ background: loadColors.high }} /> Высокая{snapshot.value_unit === "demo_index" ? " (≥ 55)" : ""}</span>
+        <span><i style={{ background: loadColors.low }} /> Низкая</span>
+        <span><i style={{ background: loadColors.medium }} /> Средняя</span>
+        <span><i style={{ background: loadColors.high }} /> Высокая</span>
       </div>
       <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
       {onSplit && <EdgeSplitHandles onSplit={onSplit} />}

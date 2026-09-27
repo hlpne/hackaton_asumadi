@@ -8,13 +8,11 @@ interface ForecastModalProps {
 }
 
 function downloadCsv(forecast: ForecastResponse) {
-  const header = "timestamp,predicted_load,lower_bound,upper_bound";
+  const header = "timestamp,predicted_load";
   const rows = forecast.points.map((p) =>
     [
       p.timestamp,
       p.predicted_load,
-      p.lower_bound ?? "",
-      p.upper_bound ?? "",
     ].join(",")
   );
   const csv = [header, ...rows].join("\n");

@@ -69,6 +69,12 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
     label: item.name.replace(" · демопрогноз", ""),
     color: item.color,
   }));
+  const stopOptions: WheelOption[] = [
+    { value: "", label: "Не выбрана", meta: "Начало направления" },
+    ...stops.filter((stop) => stop.direction_id === config.directionId)
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((stop) => ({ value: stop.id, label: stop.name, meta: `№ ${stop.sequence + 1}` })),
+  ];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,6 +174,9 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
           aria-pressed={config.directionId === direction}
           onClick={() => { setSelected(null); onChange({ ...config, directionId: direction as 0 | 1, stopId: "" }); }}>{direction + 1}</button>)}
       </div></fieldset>
+      <WheelPicker label="Остановка" value={config.stopId ?? ""} options={stopOptions}
+        onChange={(stopId) => { setSelected(null); onChange({ ...config, stopId }); }}
+        disabled={!stops.length} />
       <PeriodControls compact horizon={config.horizon} date={config.date}
         onHorizonChange={(horizon) => onChange({ ...config, horizon })}
         onDateChange={(date) => onChange({ ...config, date })} />

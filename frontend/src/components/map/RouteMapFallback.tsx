@@ -73,7 +73,7 @@ export function RouteMapFallback({ geometry, route, snapshot, markers, selectedS
         const position = projection.point([marker.lon, marker.lat]);
         const selected = marker.stop_id === selectedStopId;
         const start = marker.stop_id === startStopId;
-        const label = `${marker.stop_name} · индекс ${marker.predicted_load.toLocaleString("ru-RU")}`;
+        const label = `${marker.stop_name} · прогноз нагрузки ${marker.predicted_load.toLocaleString("ru-RU")}`;
         return <g key={marker.stop_id} className={`fallback-stop${selected ? " selected" : ""}${start ? " segment-start" : ""}`}
           transform={`translate(${position.x.toFixed(1)} ${position.y.toFixed(1)})`}
           role="button" tabIndex={0} aria-label={label} onClick={() => onStopSelect(marker.stop_id)}

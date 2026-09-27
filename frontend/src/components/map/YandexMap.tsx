@@ -73,6 +73,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
   const selectStopRef = useRef(onStopSelect);
   const lastGeometry = useRef("");
   const [ready, setReady] = useState(false);
+  const [mapGeneration, setMapGeneration] = useState(0);
 
   useEffect(() => { selectStopRef.current = onStopSelect; }, [onStopSelect]);
 
@@ -89,6 +90,8 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       map.addChild(new api.YMapDefaultFeaturesLayer({}));
       mapRef.current = map;
       apiRef.current = api;
+      lastGeometry.current = "";
+      setMapGeneration((generation) => generation + 1);
       setReady(true);
     }).catch((error: unknown) => {
       if (!cancelled) {
@@ -142,7 +145,7 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       button.className = `yandex-stop-marker${point.stop_id === startStopId ? " segment-start" : ""}${point.stop_id === selectedStopId ? " selected" : ""}`;
       button.style.background = noDemoService ? neutralMapColor() : snapshot
         ? colorForValue(point.predicted_load, snapshot) : route.color;
-      button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name} · индекс ${point.predicted_load.toLocaleString("ru-RU")}`;
+      button.title = `${point.stop_id === startStopId ? "Начальная остановка · " : ""}${point.stop_name} · прогноз нагрузки ${point.predicted_load.toLocaleString("ru-RU")}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => selectStopRef.current(point.stop_id));
       add(new api.YMapMarker({ coordinates: [point.lon, point.lat] }, button));
@@ -155,13 +158,13 @@ export function YandexMap({ apiKey, geometry, route, snapshot, visibleStopIds, s
       const lat = allCoordinates.map((point) => point[1]);
       map.update({ location: { bounds: [[Math.min(...lon), Math.min(...lat)], [Math.max(...lon), Math.max(...lat)]] } });
     }
-  }, [ready, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, colorForValue]);
+  }, [ready, mapGeneration, geometry, route, snapshot, visibleStopIds, startStopId, selectedStopId, colorForValue]);
 
   useEffect(() => {
     if (!ready || !mapRef.current || !focusedPoint || focusedPoint.route_id !== route?.id ||
       focusedPoint.direction_id !== geometry?.direction_id) return;
     mapRef.current.update({ location: { center: [focusedPoint.lon, focusedPoint.lat], zoom: 15 } });
-  }, [ready, route?.id, geometry?.direction_id, focusedPoint]);
+  }, [ready, mapGeneration, route?.id, geometry?.direction_id, focusedPoint]);
 
   return <div ref={container} className="map-container" aria-label="Карта Яндекса с маршрутами и остановками OSM" />;
 }

@@ -13,7 +13,7 @@ interface HeaderProps {
 }
 
 const links: Array<{ page: Page; label: string }> = [
-  { page: "home", label: "Главное" },
+  { page: "home", label: "Главная" },
   { page: "details", label: "Мониторинг" },
   { page: "analytics", label: "Сеть" },
   { page: "model", label: "О модели" },

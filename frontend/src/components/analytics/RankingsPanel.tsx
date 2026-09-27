@@ -73,7 +73,7 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
         <div className="network-metrics">
           <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
           <article><div className="network-metric-heading"><MapPinIcon weight="fill" aria-hidden="true" /><span>Остановок</span></div><strong>{networkData.points.length}</strong></article>
-          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний индекс</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
+          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средняя нагрузка</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
           <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Самый загруженный</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
         </div>
 
@@ -87,8 +87,8 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
           </div>
           <div className="ranking-content" aria-live="polite">
             <p className="ranking-description">{view === "routes"
-              ? `Средний индекс остановок каждого маршрута ${period}.`
-              : `Остановки с самым высоким индексом ${period}.`}</p>
+              ? `Средняя прогнозная нагрузка остановок каждого маршрута ${period}.`
+              : `Остановки с самой высокой прогнозной нагрузкой ${period}.`}</p>
             {!hasPositiveLoad && <p className="top-panel-status">Для выбранной даты нет положительного прогноза.</p>}
             {hasPositiveLoad && (view === "routes" ? routes.length > 0 : stops.length > 0) && <div className="ranking-wheel-layout">
               {view === "routes" ? <WheelPicker inline label="Рейтинг маршрутов" value={routeChoice?.id ?? ""} onChange={setRankedRoute}
@@ -102,7 +102,7 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
               title="CSV с прогнозом по всем остановкам всех маршрутов за выбранный срез"
               onClick={() => downloadNetworkSnapshotCsv(networkData)}>↓ Скачать сводку по всем маршрутам</button>
           </div>
-          <p className="top-panel-note">{networkData.is_mock ? "Демонстрационные данные; индекс не равен заполненности салона." : "Порог перегрузки не задан."}
+          <p className="top-panel-note">{networkData.is_mock ? "Демонстрационные данные; показатель не равен заполненности салона." : "Порог перегрузки не задан."}
             {" "}Источник: /forecast/map · {networkData.model_version}.</p>
         </section>
       </aside>

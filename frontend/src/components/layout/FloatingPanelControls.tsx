@@ -66,7 +66,7 @@ export function FloatingPanelControls({ panel }: { panel: ReturnType<typeof useF
   return <div className={`floating-panel-rail${panel.hidden ? " floating-panel-rail--collapsed" : ""}`}>
     <button type="button" className="floating-panel-toggle" onClick={panel.toggle}
       aria-expanded={!panel.hidden} aria-label={label} title={label}>
-      {panel.hidden ? <CaretLeftIcon weight="bold" aria-hidden="true" /> : <CaretRightIcon weight="bold" aria-hidden="true" />}
+      {panel.hidden ? <><CaretLeftIcon weight="bold" aria-hidden="true" /><span>Показать панель</span></> : <CaretRightIcon weight="bold" aria-hidden="true" />}
     </button>
     {!panel.hidden && <button type="button" className="floating-panel-resize" aria-label="Изменить ширину правой панели"
       title="Перетащите для изменения ширины. Стрелки — шаг 20 пикселей."

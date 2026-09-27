@@ -1,54 +1,33 @@
-import type { LngLat } from "./YandexMap";
 import type { RouteGeometry } from "../../types";
 
-export interface RouteIntersection {
-  coordinate: LngLat;
-  routeIds: string[];
-}
-
-/**
- * Finds approximate shared route corridors from OSM geometry. Coordinates are
- * bucketed to ~120 metres and nearby duplicate buckets are collapsed, keeping
- * the result intentionally small enough for interactive map markers.
- */
-export function findRouteIntersections(geometries: RouteGeometry[], limit = 12): RouteIntersection[] {
-  const cell = .0015;
-  const samples: Array<{ lon: number; lat: number; routeId: string; cellX: number; cellY: number }> = [];
-  geometries.forEach((geometry) => geometry.lines.forEach((line) => {
-    const step = Math.max(1, Math.ceil(line.length / 180));
-    for (let index = 0; index < line.length; index += step) {
-      const [lon, lat] = line[index];
-      samples.push({ lon, lat, routeId: geometry.route_id, cellX: Math.floor(lon / cell), cellY: Math.floor(lat / cell) });
+/** Returns every route whose geometry passes within radius of a point in projected units. */
+export function routesNearPoint(
+  geometries: RouteGeometry[],
+  point: [number, number],
+  project: (lon: number, lat: number) => [number, number],
+  radius: number,
+): string[] {
+  const routeIds = new Set<string>();
+  const radiusSquared = radius * radius;
+  for (const geometry of geometries) {
+    if (routeIds.has(geometry.route_id)) continue;
+    for (const line of geometry.lines) {
+      for (let index = 0; index < line.length; index += 1) {
+        const start = project(...line[index]);
+        const end = project(...(line[index + 1] ?? line[index]));
+        const dx = end[0] - start[0];
+        const dy = end[1] - start[1];
+        const position = dx * dx + dy * dy === 0 ? 0 : Math.max(0, Math.min(1,
+          ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy)));
+        const distanceSquared = (start[0] + position * dx - point[0]) ** 2 +
+          (start[1] + position * dy - point[1]) ** 2;
+        if (distanceSquared <= radiusSquared) {
+          routeIds.add(geometry.route_id);
+          break;
+        }
+      }
+      if (routeIds.has(geometry.route_id)) break;
     }
-  }));
-
-  const buckets = new Map<string, typeof samples>();
-  samples.forEach((sample) => {
-    const key = `${sample.cellX}/${sample.cellY}`;
-    const bucket = buckets.get(key) ?? [];
-    bucket.push(sample);
-    buckets.set(key, bucket);
-  });
-
-  const candidates = samples.map((sample) => {
-    const nearby = [-1, 0, 1].flatMap((x) => [-1, 0, 1].flatMap((y) =>
-      buckets.get(`${sample.cellX + x}/${sample.cellY + y}`) ?? []))
-      .filter((point) => (point.lon - sample.lon) ** 2 + (point.lat - sample.lat) ** 2 <= cell ** 2);
-    const routeIds = [...new Set(nearby.map((point) => point.routeId))].sort();
-    return { coordinate: [sample.lon, sample.lat] as LngLat, routeIds };
-  })
-    .filter((candidate) => candidate.routeIds.length > 1)
-    .sort((left, right) => right.routeIds.length - left.routeIds.length);
-
-  const selected: RouteIntersection[] = [];
-  for (const candidate of candidates) {
-    const tooClose = selected.some((item) => {
-      const lon = item.coordinate[0] - candidate.coordinate[0];
-      const lat = item.coordinate[1] - candidate.coordinate[1];
-      return lon * lon + lat * lat < .003 * .003;
-    });
-    if (!tooClose) selected.push(candidate);
-    if (selected.length === limit) break;
   }
-  return selected;
+  return [...routeIds];
 }

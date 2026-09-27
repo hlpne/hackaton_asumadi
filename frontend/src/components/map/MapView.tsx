@@ -124,9 +124,9 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
         {busy ? "Загружаем остановки и прогноз…" : "Для выбранных фильтров нет данных карты."}
       </p>}
       <div className="map-legend" aria-label="Уровни загрузки">
-        <span><i style={{ background: loadColors.low }} /> Низкая{snapshot?.value_unit === "demo_index" ? " (< 35)" : ""}</span>
-        <span><i style={{ background: loadColors.medium }} /> Средняя{snapshot?.value_unit === "demo_index" ? " (35–54)" : ""}</span>
-        <span><i style={{ background: loadColors.high }} /> Высокая{snapshot?.value_unit === "demo_index" ? " (≥ 55)" : ""}</span>
+        <span><i style={{ background: loadColors.low }} /> Низкая</span>
+        <span><i style={{ background: loadColors.medium }} /> Средняя</span>
+        <span><i style={{ background: loadColors.high }} /> Высокая</span>
       </div>
       {onSplit && <EdgeSplitHandles onSplit={onSplit} />}
     </section>

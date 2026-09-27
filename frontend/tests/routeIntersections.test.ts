@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findRouteIntersections } from "../src/components/map/routeIntersections.ts";
+import { routesNearPoint } from "../src/components/map/routeIntersections.ts";
 import type { RouteGeometry } from "../src/types.ts";
 
 const geometry = (routeId: string, coordinates: Array<[number, number]>): RouteGeometry => ({
@@ -12,19 +12,19 @@ const geometry = (routeId: string, coordinates: Array<[number, number]>): RouteG
   osm_relation_id: 1,
   lines: [coordinates],
 });
-test("shared geometry produces one route-choice hub", () => {
-  const hubs = findRouteIntersections([
-    geometry("demo-1", [[37.6, 55.7], [37.61, 55.71]]),
-    geometry("demo-2", [[37.6002, 55.7002], [37.62, 55.72]]),
-  ]);
-  assert.equal(hubs.length, 1);
-  assert.deepEqual(hubs[0].routeIds, ["demo-1", "demo-2"]);
+test("hover finds both routes along overlapping segments, including between vertices", () => {
+  const routes = routesNearPoint([
+    geometry("demo-1", [[0, 0], [10, 0]]),
+    geometry("demo-2", [[0, 1], [10, 1]]),
+    geometry("demo-3", [[0, 12], [10, 12]]),
+  ], [5, 0], (x, y) => [x, y], 2);
+  assert.deepEqual(routes, ["demo-1", "demo-2"]);
 });
 
-test("separate routes do not create a false menu", () => {
-  const hubs = findRouteIntersections([
-    geometry("demo-1", [[37.5, 55.5], [37.51, 55.51]]),
-    geometry("demo-2", [[37.7, 55.7], [37.71, 55.71]]),
-  ]);
-  assert.deepEqual(hubs, []);
+test("hover does not include distant routes", () => {
+  const routes = routesNearPoint([
+    geometry("demo-1", [[0, 0], [10, 0]]),
+    geometry("demo-2", [[0, 10], [10, 10]]),
+  ], [5, 0], (x, y) => [x, y], 2);
+  assert.deepEqual(routes, ["demo-1"]);
 });

@@ -5,6 +5,7 @@ import { Header } from "./components/layout/Header";
 import type { Page } from "./components/layout/Header";
 import { HomePage } from "./components/layout/HomePage";
 import { Sidebar } from "./components/layout/Sidebar";
+import { TransitBackdrop } from "./components/layout/TransitBackdrop";
 import { RankingsPanel } from "./components/analytics/RankingsPanel";
 import { RouteDetailsDashboard } from "./components/analytics/RouteDetailsDashboard";
 import { ModelPage } from "./components/model/ModelPage";
@@ -84,8 +85,6 @@ export default function App() {
   const [settledFilters, setSettledFilters] = useState(() => ({ routeId, horizon, date }));
   const [splitCount, setSplitCount] = useState<1 | 2 | 3 | 4>(initialSplitCount);
   const [splitEdge, setSplitEdge] = useState<SplitEdge>("right");
-  const [networkSplitCount, setNetworkSplitCount] = useState<1 | 2 | 3 | 4>(() => initialSplitCount("networkSplit"));
-  const [networkSplitEdge, setNetworkSplitEdge] = useState<SplitEdge>("right");
   const [retry, setRetry] = useState(0);
   const [mapForecast, setMapForecast] = useState<MapForecastResponse | null>(null);
   const [routeForecast, setRouteForecast] = useState<ForecastResponse | null>(null);
@@ -119,18 +118,6 @@ export default function App() {
     window.history.replaceState(null, "", url);
   }
 
-  function closeNetworkSplit(config: SplitPaneConfig) {
-    setRouteId(config.routeId);
-    setHorizon(config.horizon);
-    setDate(config.date);
-    setFromStopId(config.stopId ?? "");
-    setNetworkRouteFocused(Boolean(config.routeId));
-    setNetworkSplitCount(1);
-    const url = new URL(window.location.href);
-    ["networkSplit", "networkSplitRoutes", "networkSplitDates", "networkSplitHorizons", "networkSplitDirections", "networkSplitStops", "networkSplitLayout"].forEach((key) => url.searchParams.delete(key));
-    window.history.replaceState(null, "", url);
-  }
-
   function navigate(nextPage: Page) {
     setPage(nextPage);
     if (window.location.hash !== `#${nextPage}`) window.location.hash = nextPage;
@@ -153,7 +140,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const label = page === "home" ? "Главное" : page === "details" ? "Мониторинг" : page === "analytics" ? "Сеть" : "О модели";
+    const label = page === "home" ? "Главная" : page === "details" ? "Мониторинг" : page === "analytics" ? "Сеть" : "О модели";
     document.title = `${label} · Трамвай / Прогноз`;
     document.body.dataset.page = page;
     if (page === "details" && scrollToMap) {
@@ -272,7 +259,7 @@ export default function App() {
     fromStop?.direction_id, forecastStopId, stops, retry]);
 
   useEffect(() => {
-    if (page !== "analytics" || networkSplitCount > 1) return;
+    if (page !== "analytics") return;
     if (settledFilters.horizon !== horizon || settledFilters.date !== date) {
       setNetworkBusy(false);
       return;
@@ -292,13 +279,14 @@ export default function App() {
       .catch((failure: unknown) => { if (!controller.signal.aborted) setNetworkError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setNetworkBusy(false); });
     return () => controller.abort();
-  }, [page, settledFilters.horizon, settledFilters.date, horizon, date, retry, networkSplitCount]);
+  }, [page, settledFilters.horizon, settledFilters.date, horizon, date, retry]);
 
   return (
     <>
       <Header page={page} onNavigate={navigate} theme={theme}
         onThemeToggle={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
       <main className={`app-main app-main--${page}`}>
+        {(page === "home" || page === "model") && <TransitBackdrop className="page-backdrop" />}
         {page === "home" ? <HomePage onNavigate={navigate} /> : page === "model" ? <ModelPage /> : <div className={page === "details" ? "workspace-page" : "analytics-page"}>
         <h1 className="sr-only">{page === "details" ? "Мониторинг маршрута" : "Трамвайная сеть"}</h1>
 
@@ -326,6 +314,9 @@ export default function App() {
             horizon={settledFilters.horizon}
             onSelectStop={(point) => {
               setFocusedPoint(point);
+              setFromStopId(point.stop_id);
+              setToStopId("");
+              setDirectionId(point.direction_id);
               setForecastStopId(point.stop_id);
             }}
             onRetryForecast={() => setRetry((value) => value + 1)}
@@ -372,14 +363,7 @@ export default function App() {
           </p>
         )}
 
-        {page === "analytics" && networkSplitCount > 1 && (routes.length
-          ? <SplitWorkspace mode="analytics" routes={routes} theme={theme}
-            initialCount={networkSplitCount as 2 | 3 | 4} initialEdge={networkSplitEdge}
-            initialConfig={{ routeId, horizon, date, directionId, stopId: "" }}
-            onOpenDetails={closeNetworkSplit} onClose={closeNetworkSplit} />
-          : <p className="network-status" role="status">Загружаем сеть для Split View…</p>)}
-
-        {page === "analytics" && networkSplitCount === 1 && <RankingsPanel
+        {page === "analytics" && <RankingsPanel
           routes={routes}
           selectedRouteId={networkRouteFocused ? routeId : ""}
           // The network view has no stop filter; a stop chosen in Monitoring must not carry over.
@@ -410,7 +394,6 @@ export default function App() {
             navigate("details");
           }}
           onRetry={() => setRetry((value) => value + 1)}
-          onSplit={(edge) => { setNetworkSplitEdge(edge); setNetworkSplitCount(2); }}
           theme={theme}
           controls={<Sidebar
             mode="analytics"

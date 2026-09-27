@@ -76,7 +76,7 @@ export function StopsModal({ stops, snapshot, selectedStopId, onSelect, onClose 
                 color: point && snapshot ? loadColor(point.predicted_load, snapshot) : undefined }))} />
             <div className="wheel-preview"><span>Направление {chosen.stop.direction_id + 1} · остановка {chosen.stop.sequence + 1}</span>
               <strong>{chosen.stop.name}</strong><small>{chosen.point && snapshot
-                ? `${loadLabels[loadLevel(chosen.point.predicted_load, snapshot)]} · индекс ${number.format(chosen.point.predicted_load)}`
+                ? `${loadLabels[loadLevel(chosen.point.predicted_load, snapshot)]} · прогноз ${number.format(chosen.point.predicted_load)}`
                 : "Нет прогноза для остановки"}</small>
               <button type="button" disabled={!chosen.point} onClick={() => { if (chosen.point) { onSelect(chosen.point); onClose(); } }}>
                 Показать на карте</button>

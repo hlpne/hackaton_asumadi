@@ -51,6 +51,15 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
   const average = points.length ? points.reduce((sum, point) => sum + point.predicted_load, 0) / points.length : null;
   const visibleStopCount = segment?.stops.length ?? stops.filter((stop) => stop.direction_id === direction).length;
   const maxLoad = Math.max(1, ...points.map((point) => point.predicted_load));
+  const displayedForecastStop = forecastLabel ?? stops.find((stop) => stop.id === forecast?.series_key.stop_id)?.name;
+  const firstForecastDate = forecast?.points[0]?.timestamp;
+  const lastForecastDate = forecast?.points.at(-1)?.timestamp;
+  const firstForecastDay = firstForecastDate ? date.format(new Date(firstForecastDate)) : "";
+  const lastForecastDay = lastForecastDate ? date.format(new Date(lastForecastDate)) : "";
+  const periodLabel = firstForecastDate && lastForecastDate
+    ? firstForecastDay === lastForecastDay ? firstForecastDay
+      : `с ${firstForecastDay} по ${lastForecastDay}`
+    : horizon === "day" ? "за выбранный день" : horizon === "month" ? "за выбранный месяц" : "за 12 месяцев";
 
   return <div className="detail-dashboard">
     <div ref={panel.containerRef} className={`detail-main-grid${panel.hidden ? " floating-panel-hidden" : ""}`} style={panel.style}>
@@ -67,12 +76,12 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <aside className="route-insight-panel" aria-label="Параметры и аналитика выбранного маршрута">
       {controls}
       <div className="detail-metrics" aria-live="polite">
-      <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средний индекс</span><strong>{average === null ? "—" : number.format(average)}</strong>
+      <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средняя нагрузка</span><strong>{average === null ? "—" : number.format(average)}</strong>
         <small>{snapshot?.is_mock ? "Демонстрационный показатель" : "По остановкам направления"}</small></div></article>
-      <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Максимальный индекс</span><strong>{peakStop ? number.format(peakStop.predicted_load) : "—"}</strong>
+      <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковая нагрузка</span><strong>{peakStop ? number.format(peakStop.predicted_load) : "—"}</strong>
         <small>{snapshot && peakStop ? `Направление ${direction + 1}` : "Нет данных для среза"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковая остановка</span><strong className="detail-metric-name">{peakStop?.stop_name ?? "—"}</strong>
-        <small>{peakStop ? `Индекс ${number.format(peakStop.predicted_load)}` : "Нет данных для среза"}</small></div></article>
+        <small>{peakStop ? `Прогноз нагрузки: ${number.format(peakStop.predicted_load)}` : "Нет данных для среза"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановок</span><strong>{visibleStopCount || "—"}</strong>
         <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
@@ -81,10 +90,10 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <div className="detail-forecast-heading">
         <span className="detail-forecast-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span>
         <div>
-          <p className="eyebrow">ВЫБРАННЫЙ МАРШРУТ</p>
-          <h2 id={forecastId}>Прогноз загрузки</h2>
-          <p>{forecastLabel ? `Остановка «${forecastLabel}»` : `Направление ${direction + 1}`}
-            {" · "}{horizon === "day" ? "выбранный день" : horizon === "month" ? "выбранный период" : "12 месяцев"}</p>
+          <p className="eyebrow">МАРШРУТ {route?.name.replace(" · демопрогноз", "") ?? "—"}</p>
+          <h2 id={forecastId}>График прогноза загрузки маршрута</h2>
+          <p>{`Направление ${direction + 1}`}{displayedForecastStop ? ` · остановка «${displayedForecastStop}»` : ""}
+            {" · "}{periodLabel}</p>
         </div>
       </div>
       {forecastBusy && <p className="detail-forecast-status" role="status">Загружаем прогноз…</p>}
@@ -97,7 +106,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
 
       <section className="route-summary" aria-labelledby={summaryId}>
         <div className="route-summary-heading">
-          <div className="route-summary-title"><TramIcon weight="bold" aria-hidden="true" /><div><p className="eyebrow">СВОДКА ПО МАРШРУТУ</p><h2 id={summaryId}>{route?.name ?? "Маршрут"}</h2></div></div>
+          <div className="route-summary-title"><TramIcon weight="bold" aria-hidden="true" /><div><p className="eyebrow">СВОДКА ПО МАРШРУТУ</p><h2 id={summaryId}>{route?.name.replace(" · демопрогноз", "") ?? "Маршрут"}</h2></div></div>
           <button type="button" className="route-summary-download" disabled={!snapshot || !route || !points.length}
             title="Скачать расчёт по остановкам текущего направления"
             onClick={() => { if (snapshot && route) downloadForecastSnapshotCsv(snapshot, route.id, direction); }}>
