@@ -24,7 +24,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CATALOG_BACKEND: postgres
-      PREDICTOR_FACTORY: ${PREDICTOR_FACTORY:-app.predictors.mock:build_predictor}
+      PREDICTOR_FACTORY: ${PREDICTOR_FACTORY:-app.predictors.tram_final:build_predictor}
       DB_HOST: db
       DB_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-transport}

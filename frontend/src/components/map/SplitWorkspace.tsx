@@ -1,7 +1,7 @@
 import { ArrowsOutIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { getForecast, getMapForecast, getStops } from "../../api";
-import { periodRequest, snapshotTimestamp } from "../../forecastPeriod";
+import { modelDate, modelPeriodRequest, snapshotTimestamp } from "../../forecastPeriod";
 import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
 import type { Theme } from "../../theme";
 import { PeriodControls } from "../layout/PeriodControls";
@@ -115,12 +115,10 @@ function SplitMapPane({ index, routes, theme, config, onChange, onOpenDetails, o
       return;
     }
     const controller = new AbortController();
-    const range = periodRequest(settledConfig.date, settledConfig.horizon);
-    const first = stops.find((item) => item.direction_id === settledConfig.directionId);
+    const range = modelPeriodRequest(settledConfig.date, settledConfig.horizon);
     setForecastBusy(true);
     setForecastError("");
-    getForecast({ route_id: settledConfig.routeId, stop_id: selected?.stop_id || settledConfig.stopId || first?.id,
-      direction_id: settledConfig.directionId, horizon: settledConfig.horizon, resolution: range.resolution,
+    getForecast({ route_id: settledConfig.routeId, horizon: settledConfig.horizon, resolution: range.resolution,
       from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
@@ -199,12 +197,13 @@ export function SplitWorkspace({ routes, theme, initialCount, initialEdge, initi
     return Array.from({ length: 4 }, (_, index) => {
       const routeId = routeValues[index];
       const horizon = horizonValues[index];
+      const selectedHorizon = horizon === "day" || horizon === "month" ? horizon : initialConfig.horizon;
       return {
         routeId: routes.some((route) => route.id === routeId)
           ? routeId
           : routes[index % Math.max(routes.length, 1)]?.id ?? initialConfig.routeId,
-        date: /^\d{4}-\d{2}-\d{2}$/.test(dateValues[index] ?? "") ? dateValues[index] : initialConfig.date,
-        horizon: horizon === "day" || horizon === "month" || horizon === "year" ? horizon : initialConfig.horizon,
+        date: modelDate(dateValues[index] ?? initialConfig.date, selectedHorizon),
+        horizon: selectedHorizon,
         directionId: directionValues[index] === "1" ? 1 : 0,
         stopId: stopValues[index] || "",
       };

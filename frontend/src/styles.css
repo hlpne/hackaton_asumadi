@@ -793,6 +793,7 @@ body[data-page="details"] { overflow: hidden; }
 .horizon-switch > div, .direction-switch > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-soft); }
 .horizon-option, .direction-option { min-width: 0; min-height: 34px !important; padding: .4rem .3rem !important; border-radius: 7px !important; background: transparent !important; color: var(--text-muted) !important; font-size: .7rem; }
 .horizon-option:hover:not(:disabled), .direction-option:hover:not(:disabled) { color: var(--text-primary) !important; }
+.horizon-option:disabled { cursor: not-allowed; opacity: .58; }
 .horizon-option--active, .direction-option--active { background: var(--surface-selected) !important; color: var(--link) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus-ring) 42%, transparent); }
 .period-control .date-field, .year-field { gap: .35rem; }
 .period-control .date-trigger { min-height: 42px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface-muted) 72%, transparent); }

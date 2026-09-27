@@ -66,19 +66,19 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
       <aside className="network-side-panel" aria-label="Параметры и зоны внимания сети">
         {controls}
         <div className="network-heading">
-          <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ</p><h2>Зоны внимания</h2></div>
+          <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ · ДЕМОИНДЕКС</p><h2>Зоны внимания</h2></div>
           <time dateTime={networkData.timestamp}>{timestampFormatter.format(new Date(networkData.timestamp))}</time>
         </div>
 
         <div className="network-metrics">
           <article><div className="network-metric-heading"><TramIcon weight="bold" aria-hidden="true" /><span>Маршрутов</span></div><strong>{routes.length}</strong></article>
           <article><div className="network-metric-heading"><MapPinIcon weight="fill" aria-hidden="true" /><span>Остановок</span></div><strong>{networkData.points.length}</strong></article>
-          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средняя нагрузка</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
-          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Самый загруженный</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
+          <article><div className="network-metric-heading"><ChartBarIcon weight="bold" aria-hidden="true" /><span>Средний демоиндекс</span></div><strong>{average === null ? "—" : valueFormatter.format(average)}</strong></article>
+          <article><div className="network-metric-heading"><TrophyIcon weight="bold" aria-hidden="true" /><span>Лидер деморейтинга</span></div><strong className="network-metric-name">{hasPositiveLoad ? routes[0]?.name.replace(" · демопрогноз", "") : "Нет нагрузки"}</strong></article>
         </div>
 
         <section className="top-panel rankings-panel" aria-labelledby={titleId}>
-          <div className="top-panel-heading"><div><p className="eyebrow">ПРОГНОЗ ЗАГРУЗКИ</p><h2 id={titleId}>{title}</h2></div></div>
+          <div className="top-panel-heading"><div><p className="eyebrow">ДЕМОНСТРАЦИОННЫЙ ИНДЕКС</p><h2 id={titleId}>{title}</h2></div></div>
           <div className="ranking-views" role="group" aria-label="Выберите вид списка">
             <button type="button" className={`ranking-view${view === "routes" ? " ranking-view--active" : ""}`}
               aria-pressed={view === "routes"} onClick={() => setView("routes")}>Маршруты</button>
@@ -87,8 +87,8 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
           </div>
           <div className="ranking-content" aria-live="polite">
             <p className="ranking-description">{view === "routes"
-              ? `Средняя прогнозная нагрузка остановок каждого маршрута ${period}.`
-              : `Остановки с самой высокой прогнозной нагрузкой ${period}.`}</p>
+              ? `Средний демонстрационный индекс остановок каждого маршрута ${period}.`
+              : `Остановки с самым высоким демонстрационным индексом ${period}.`}</p>
             {!hasPositiveLoad && <p className="top-panel-status">Для выбранной даты нет положительного прогноза.</p>}
             {hasPositiveLoad && (view === "routes" ? routes.length > 0 : stops.length > 0) && <div className="ranking-wheel-layout">
               {view === "routes" ? <WheelPicker inline label="Рейтинг маршрутов" value={routeChoice?.id ?? ""} onChange={setRankedRoute}

@@ -1,6 +1,15 @@
 import type { Horizon } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const MODEL_START_DATE = "2025-11-01";
+export const MODEL_END_DATE = "2025-12-31";
+export const MODEL_LAST_MONTH_START = "2025-12-02";
+
+export function modelDate(date: string, horizon: Horizon): string {
+  const latest = horizon === "month" ? MODEL_LAST_MONTH_START : MODEL_END_DATE;
+  if (date < MODEL_START_DATE || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return MODEL_START_DATE;
+  return date > latest ? latest : date;
+}
 
 function parseUtcDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
@@ -74,6 +83,17 @@ export function periodRequest(date: string, horizon: Horizon) {
     from: moscowTimestamp(period.start),
     to: moscowTimestamp(period.end),
     resolution: period.resolution,
+  };
+}
+
+/** Route-level validation series from the fixed final archive. */
+export function modelPeriodRequest(date: string, horizon: Horizon) {
+  if (horizon === "year") throw new Error("Архив модели не содержит полного года прогноза.");
+  const period = forecastPeriod(date, horizon);
+  return {
+    from: moscowTimestamp(period.start),
+    to: moscowTimestamp(period.end),
+    resolution: horizon === "day" ? "PT1H" as const : "P1D" as const,
   };
 }
 

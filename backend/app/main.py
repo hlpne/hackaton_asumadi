@@ -85,7 +85,8 @@ def create_app(
     )
     application = FastAPI(
         title=config.app_name, version=config.app_version,
-        description="Contract v1. Demo predictions do not represent real passenger counts.",
+        description=("Contract v1. Archived route-level validations cover November-December 2025. "
+                     "Stop-level map predictions are a demonstration index, not passenger counts."),
         docs_url=None, redoc_url=None, servers=[{"url": "."}],
         responses={422: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 401: {"model": ErrorResponse},
                    409: {"model": ErrorResponse}, 503: {"model": ErrorResponse},

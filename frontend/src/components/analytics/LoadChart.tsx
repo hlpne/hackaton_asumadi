@@ -69,7 +69,7 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
             : <XAxis dataKey="label" stroke={colors.muted} fontSize={12} tickMargin={8}
               interval={forecast.horizon === "year" ? 1 : 3} />}
           <YAxis stroke={colors.muted} fontSize={12} tickMargin={4} domain={[0, chartMax]}
-            label={{ value: "Прогноз нагрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
+            label={{ value: forecast.value_unit === "validations" ? "Валидаций" : "Прогноз нагрузки", angle: -90, position: "insideLeft", fill: colors.muted }} />
           <Tooltip
             contentStyle={{
               background: theme === "light" ? "rgba(249, 252, 255, .92)" : "rgba(12, 27, 46, .9)",
@@ -84,7 +84,8 @@ export function LoadChart({ forecast, theme }: LoadChartProps) {
               ? formatTick(new Date(Number(value)).toISOString(), "day")
               : String(value)}
             formatter={(value, name) => {
-              const label = String(name) === "predicted_load" ? "Прогноз нагрузки" : String(name);
+              const label = String(name) === "predicted_load"
+                ? forecast.value_unit === "validations" ? "Валидации маршрута" : "Прогноз нагрузки" : String(name);
               const num =
                 typeof value === "number" ? value.toFixed(1) : String(value);
               return [num, label];

@@ -11,21 +11,10 @@ import { RouteDetailsDashboard } from "./components/analytics/RouteDetailsDashbo
 import { ModelPage } from "./components/model/ModelPage";
 import { buildRouteSegment } from "./routeSegment";
 import { applyTheme, initialTheme } from "./theme";
-import { periodRequest, snapshotTimestamp } from "./forecastPeriod";
+import { modelDate, modelPeriodRequest, snapshotTimestamp } from "./forecastPeriod";
 import { supportedNetworkSnapshot, supportedRoutes } from "./supportedRoutes";
 import { SplitWorkspace, type SplitPaneConfig } from "./components/map/SplitWorkspace";
 import type { SplitEdge } from "./components/map/EdgeSplitHandles";
-
-function currentMoscowDate(): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Moscow",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
 
 function compareRoutes(a: Route, b: Route): number {
   const first = a.id.replace(/^demo-/, "");
@@ -57,7 +46,7 @@ function queryValue(name: string): string {
 
 function initialHorizon(): Horizon {
   const value = queryValue("horizon");
-  return value === "month" || value === "year" ? value : "day";
+  return value === "month" ? value : "day";
 }
 
 function initialDirection(): 0 | 1 {
@@ -81,7 +70,7 @@ export default function App() {
   const [toStopId, setToStopId] = useState(() => queryValue("to"));
   const [forecastStopId, setForecastStopId] = useState(() => queryValue("stop"));
   const [horizon, setHorizon] = useState<Horizon>(initialHorizon);
-  const [date, setDate] = useState(() => queryValue("date") || queryValue("dateFrom") || currentMoscowDate());
+  const [date, setDate] = useState(() => modelDate(queryValue("date") || queryValue("dateFrom"), initialHorizon()));
   const [settledFilters, setSettledFilters] = useState(() => ({ routeId, horizon, date }));
   const [splitCount, setSplitCount] = useState<1 | 2 | 3 | 4>(initialSplitCount);
   const [splitEdge, setSplitEdge] = useState<SplitEdge>("right");
@@ -106,7 +95,7 @@ export default function App() {
   function closeSplit(config: SplitPaneConfig) {
     setRouteId(config.routeId);
     setHorizon(config.horizon);
-    setDate(config.date);
+    setDate(modelDate(config.date, config.horizon));
     setDirectionId(config.directionId);
     setFromStopId("");
     setToStopId("");
@@ -242,22 +231,16 @@ export default function App() {
       return;
     }
     const controller = new AbortController();
-    const range = periodRequest(settledFilters.date, settledFilters.horizon);
-    const direction = focusedPoint?.direction_id ?? segment?.directionId ?? fromStop?.direction_id ?? directionId;
-    const directionStartStop = stops.filter((stop) => stop.direction_id === direction)
-      .sort((a, b) => a.sequence - b.sequence)[0];
-    const stopId = focusedPoint?.stop_id || segment?.from.id || forecastStopId || directionStartStop?.id;
+    const range = modelPeriodRequest(settledFilters.date, settledFilters.horizon);
     setForecastError("");
     setForecastBusy(true);
-    getForecast({ route_id: settledFilters.routeId, stop_id: stopId, direction_id: direction, horizon: settledFilters.horizon,
+    getForecast({ route_id: settledFilters.routeId, horizon: settledFilters.horizon,
       resolution: range.resolution, from: range.from, to: range.to, forecast_origin: range.from }, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setRouteForecast(data); })
       .catch((failure: unknown) => { if (!controller.signal.aborted) setForecastError(failureMessage(failure)); })
       .finally(() => { if (!controller.signal.aborted) setForecastBusy(false); });
     return () => controller.abort();
-  }, [page, splitCount, settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, directionId,
-    focusedPoint?.stop_id, focusedPoint?.direction_id, segment?.from.id, segment?.directionId,
-    fromStop?.direction_id, forecastStopId, stops, retry]);
+  }, [page, splitCount, settledFilters.routeId, settledFilters.horizon, settledFilters.date, routeId, horizon, date, retry]);
 
   useEffect(() => {
     if (page !== "analytics") return;
@@ -311,7 +294,7 @@ export default function App() {
             forecast={routeForecast}
             forecastBusy={forecastBusy}
             forecastError={forecastError}
-            forecastLabel={focusedPoint?.stop_name ?? stops.find((stop) => stop.id === (segment?.from.id || forecastStopId))?.name}
+            forecastLabel={undefined}
             horizon={settledFilters.horizon}
             onSelectStop={(point) => {
               setFocusedPoint(point);

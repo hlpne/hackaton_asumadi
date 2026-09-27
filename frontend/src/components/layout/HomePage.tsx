@@ -11,10 +11,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
       <section className="home-hero" aria-labelledby="home-title">
         <div className="home-hero-copy">
           <p className="eyebrow">ХАКАТОН МОСКОВСКОГО ТРАНСПОРТА · 2026</p>
-          <h1 id="home-title">Прогноз загрузки трамвайной сети</h1>
+          <h1 id="home-title">Прогноз валидаций трамвайных маршрутов</h1>
           <p className="home-lead">
-            Инструмент, который помогает увидеть, где и когда ожидается высокая нагрузка
-            на маршруты и остановки. Прогноз, карта и сравнение маршрутов собраны в одном интерфейсе.
+            Модель прогнозирует число успешных валидаций за час по всему маршруту
+            на 01.11–31.12.2025. Карта остановок показывает отдельный демонстрационный индекс.
           </p>
           <div className="home-actions">
             <button type="button" onClick={() => onNavigate("details")}>Изучить маршрут</button>
@@ -31,23 +31,22 @@ export function HomePage({ onNavigate }: HomePageProps) {
       <section className="home-section" aria-labelledby="project-title">
         <div className="home-section-heading">
           <p className="eyebrow">О ПРОЕКТЕ</p>
-          <h2 id="project-title">От данных к понятной картине на карте</h2>
+          <h2 id="project-title">Маршрутный прогноз и схема остановок</h2>
           <p>
-            Проект создаётся для задачи прогноза пассажиропотока трамвайных маршрутов.
-            Он связывает прогноз с выбранной датой, маршрутом и остановкой, чтобы
-            результат было удобно исследовать и использовать при планировании.
+            Прогноз из модели доступен для девяти маршрутов. Остановки помогают изучать
+            схему движения, но их демонстрационные показатели не являются результатом модели.
           </p>
         </div>
         <div className="home-values">
           <article className="home-value">
             <span className="home-value-number">01</span>
-            <h3>Найти точки нагрузки</h3>
-            <p>Карта и рейтинги помогают быстро перейти от общей картины сети к отдельной остановке.</p>
+            <h3>Изучить схему</h3>
+            <p>Карта и рейтинги остановок остаются демонстрационной визуализацией.</p>
           </article>
           <article className="home-value">
             <span className="home-value-number">02</span>
             <h3>Выбрать период</h3>
-            <p>Выбор даты и горизонта обновляет прогноз для маршрута.</p>
+            <p>Выбор даты обновляет прогноз валидаций маршрута в пределах ноября–декабря 2025.</p>
           </article>
           <article className="home-value">
             <span className="home-value-number">03</span>
@@ -61,14 +60,14 @@ export function HomePage({ onNavigate }: HomePageProps) {
         <div className="home-section-heading">
           <p className="eyebrow">ИССЛЕДОВАТЬ ДАННЫЕ</p>
           <h2 id="home-explore-title">Выберите масштаб просмотра</h2>
-          <p>Начните с отдельного маршрута или посмотрите, как распределяется ожидаемая нагрузка по всей сети.</p>
+          <p>Начните с модельного прогноза отдельного маршрута или откройте демонстрационную карту сети.</p>
         </div>
         <div className="home-explore-grid">
           <article className="home-explore-card">
             <MapPinIcon weight="fill" aria-hidden="true" />
             <div>
               <h3>Один маршрут</h3>
-              <p>Остановки на карте, направление и прогноз для выбранной даты.</p>
+              <p>Прогноз валидаций всего маршрута и демонстрационная схема остановок.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("details")}>Открыть детализацию <span aria-hidden="true">→</span></button>
             </div>
           </article>
@@ -76,7 +75,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
             <ChartBarIcon weight="bold" aria-hidden="true" />
             <div>
               <h3>Вся сеть</h3>
-              <p>Карта всей сети, сравнение маршрутов, рейтинги остановок и общие показатели.</p>
+              <p>Демонстрационная карта сети, рейтинги остановок и общие показатели.</p>
               <button type="button" className="home-explore-link" onClick={() => onNavigate("analytics")}>Открыть аналитику <span aria-hidden="true">→</span></button>
             </div>
           </article>
