@@ -4,6 +4,7 @@ import { getRouteGeometry } from "../../api";
 import type { MapForecastPoint, MapForecastResponse, Route, RouteGeometry } from "../../types";
 import { loadYandex, type LngLat, type MapChild, type YMapInstance, type YMaps3 } from "./YandexMap";
 import { buildNetworkLines } from "./networkMapLines";
+import { buildSchematic, VIEW_HEIGHT, VIEW_WIDTH, type SchematicRun } from "./networkSchematic";
 import type { Theme } from "../../theme";
 import { findRouteIntersections, type RouteIntersection } from "./routeIntersections";
 import { EdgeSplitHandles, type SplitEdge } from "./EdgeSplitHandles";
@@ -18,6 +19,15 @@ interface NetworkMapProps {
   selectedRouteId: string;
   selectedStop: MapForecastPoint | null;
   onSplit?: (edge: SplitEdge) => void;
+}
+
+const STROKE = 3.4;
+const CASING = STROKE + 2.4;
+
+function runColor(run: SchematicRun, routeColor: string | undefined): string {
+  if (run.level === "route") return routeColor ?? "var(--status-neutral)";
+  if (run.level === "neutral") return "var(--status-neutral)";
+  return `var(--status-${run.level === "low" ? "normal" : run.level === "medium" ? "attention" : "critical"})`;
 }
 
 export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRouteId, selectedStop, onSplit }: NetworkMapProps) {
@@ -166,38 +176,16 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
     if (ready && selectedStop) mapRef.current?.update({ location: { center: [selectedStop.lon, selectedStop.lat], zoom: 14 } });
   }, [ready, selectedStop]);
 
-  const svgLines = useMemo(() => {
-    const lines = coloredLines.flatMap((group) => group.lines
-      .filter((coordinates) => coordinates.length > 1)
-      .map((coordinates) => ({ routeId: group.routeId, coordinates })));
-    if (!lines.length) return { paths: [], marker: null };
-    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    lines.forEach((line) => line.coordinates.forEach(([lon, lat]) => {
-      minLon = Math.min(minLon, lon);
-      maxLon = Math.max(maxLon, lon);
-      minLat = Math.min(minLat, lat);
-      maxLat = Math.max(maxLat, lat);
-    }));
-    const width = Math.max((maxLon - minLon) * Math.cos((minLat + maxLat) / 2 * Math.PI / 180), .001);
-    const height = Math.max(maxLat - minLat, .001);
-    const scale = Math.min(920 / width, 400 / height);
-    const offsetX = (1000 - width * scale) / 2;
-    const offsetY = (480 - height * scale) / 2;
-    const cosine = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
-    const paths = coloredLines.map((group) => ({
-      routeId: group.routeId,
-      color: group.color,
-      path: group.lines.filter((coordinates) => coordinates.length > 1).map((coordinates) =>
-        coordinates.map(([lon, lat], index) =>
-          `${index === 0 ? "M" : "L"}${((lon - minLon) * cosine * scale + offsetX).toFixed(1)} ${((maxLat - lat) * scale + offsetY).toFixed(1)}`).join(" ")
-      ).join(" "),
-    })).filter((line) => line.path);
-    const marker = selectedStop ? {
-      x: (selectedStop.lon - minLon) * cosine * scale + offsetX,
-      y: (maxLat - selectedStop.lat) * scale + offsetY,
-    } : null;
-    return { paths, marker };
-  }, [coloredLines, selectedStop]);
+  const schematic = useMemo(() => {
+    const built = buildSchematic(geometries, routes.map((route) => route.id), snapshot);
+    if (!built) return { routes: [], marker: null };
+    const byRoute = new Map<string, typeof built.tracks>();
+    built.tracks.forEach((track) => byRoute.set(track.routeId, [...(byRoute.get(track.routeId) ?? []), track]));
+    // The selected route is drawn last so it stays on top where lines cross.
+    const ordered = [...byRoute].sort(([a], [b]) => Number(a === selectedRouteId) - Number(b === selectedRouteId));
+    const marker = selectedStop ? built.project(selectedStop.lon, selectedStop.lat) : null;
+    return { routes: ordered.map(([routeId, tracks]) => ({ routeId, tracks })), marker };
+  }, [geometries, routes, snapshot, selectedRouteId, selectedStop]);
 
   const showFallback = !apiKey || Boolean(mapError);
 
@@ -208,20 +196,29 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
     </div></div>
     <div className="map-stage">
       {showFallback ? <div ref={container} className="map-container network-map-fallback">
-        {svgLines.paths.length > 0 && <svg viewBox="0 0 1000 480" role="img" aria-label="Схема всех трамвайных маршрутов Москвы" preserveAspectRatio="xMidYMid meet">
-          {svgLines.paths.map((line, index) => <path key={`${line.routeId}/${index}`} d={line.path}
-            fill="none" stroke={line.color} strokeWidth={selectedRouteId === line.routeId ? "5.5" : "3.8"}
-            strokeOpacity={selectedRouteId && selectedRouteId !== line.routeId ? ".23" : ".9"}
-            strokeLinecap="round" strokeLinejoin="round"
-            role="button" tabIndex={0}
-            onClick={() => onSelectRoute(line.routeId)}
-            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelectRoute(line.routeId); }}
-            onMouseMove={(event) => showHover(line.routeId, event.nativeEvent)}
-            onMouseLeave={() => setHoveredRoute(null)}><title>Маршрут {routeNumbers.get(line.routeId) ?? line.routeId}</title></path>)}
-          {svgLines.marker && <circle cx={svgLines.marker.x} cy={svgLines.marker.y} r="9" fill="#4f9bff" stroke="white" strokeWidth="3">
+        {schematic.routes.length > 0 && <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} role="img" aria-label="Схема всех трамвайных маршрутов Москвы" preserveAspectRatio="xMidYMid meet">
+          {schematic.routes.map(({ routeId, tracks }) => {
+            const dimmed = Boolean(selectedRouteId && selectedRouteId !== routeId);
+            const selected = selectedRouteId === routeId;
+            return <g key={routeId} className={`network-route${selected ? " network-route--selected" : ""}`}
+              opacity={dimmed ? .23 : 1} role="button" tabIndex={0}
+              aria-label={`Маршрут ${routeNumbers.get(routeId) ?? routeId}`}
+              onClick={() => onSelectRoute(routeId)}
+              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelectRoute(routeId); }}
+              onMouseMove={(event) => showHover(routeId, event.nativeEvent)}
+              onMouseLeave={() => setHoveredRoute(null)}>
+              <title>Маршрут {routeNumbers.get(routeId) ?? routeId}</title>
+              {tracks.map((track, index) => <path key={`c${index}`} className="network-route-casing" d={track.d}
+                style={{ strokeWidth: selected ? CASING + 1 : CASING }} />)}
+              {tracks.map((track, index) => track.runs.map((run, runIndex) => <path key={`l${index}-${runIndex}`}
+                className="network-route-line" d={run.d}
+                style={{ stroke: runColor(run, routeById.get(routeId)?.color), strokeWidth: selected ? STROKE + 1 : STROKE }} />))}
+            </g>;
+          })}
+          {schematic.marker && <circle cx={schematic.marker[0]} cy={schematic.marker[1]} r="9" fill="#4f9bff" stroke="white" strokeWidth="3">
             <title>{selectedStop?.stop_name}</title></circle>}
         </svg>}
-        {!loading && !svgLines.paths.length && <p>Нет линий маршрутов для отображения.</p>}
+        {!loading && !schematic.routes.length && <p>Нет линий маршрутов для отображения.</p>}
       </div> : <div ref={container} className="map-container" aria-label="Карта Яндекса со всеми трамвайными маршрутами" />}
       {hoveredRoute && <div className="map-route-tooltip" style={{ left: hoveredRoute.x, top: hoveredRoute.y }} role="status">
         Маршрут {routeNumbers.get(hoveredRoute.id) ?? hoveredRoute.id} · открыть

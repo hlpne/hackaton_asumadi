@@ -7,7 +7,7 @@ import { MapView } from "../map/MapView";
 import { StopsModal } from "./StopsModal";
 import type { Theme } from "../../theme";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
-import { FloatingPanelControls, FloatingPanelToggle, useFloatingPanel } from "../layout/FloatingPanelControls";
+import { FloatingPanelControls, useFloatingPanel } from "../layout/FloatingPanelControls";
 import { downloadForecastSnapshotCsv } from "../../forecastCsv";
 
 const LoadChart = lazy(() => import("./LoadChart").then((module) => ({ default: module.LoadChart })));
@@ -65,7 +65,6 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       <FloatingPanelControls panel={panel} />
 
       <aside className="route-insight-panel" aria-label="Параметры и аналитика выбранного маршрута">
-      <FloatingPanelToggle panel={panel} />
       {controls}
       <div className="detail-metrics" aria-live="polite">
       <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Средний индекс</span><strong>{average === null ? "—" : number.format(average)}</strong>

@@ -37,11 +37,9 @@
 .login-brand { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem; }
 .login-brand .wordmark { color: var(--text-primary); }
 .login-brand .wordmark .accent { color: var(--brand-control-hover); }
-.login-brand .wordmark svg { color: var(--tram-icon); }
 .login-brand-copy { max-width: 470px; text-shadow: 0 0 14px var(--bg-canvas), 0 0 28px var(--bg-canvas); }
 .login-brand-eyebrow { margin: 0 0 1rem; color: var(--accent); font-size: .78rem; font-weight: 750; letter-spacing: .12em; }
 .login-brand-title { margin: 0; color: var(--text-primary); font-size: clamp(1.7rem, 3.2vw, 2.6rem); font-weight: 700; line-height: 1.15; letter-spacing: -.035em; }
-.login-brand-text { margin: 1.25rem 0 0; color: var(--text-secondary); line-height: 1.65; }
 .login-brand-foot { margin: 0; color: var(--text-muted); font-size: .82rem; }
 
 .login-main { position: relative; z-index: 1; display: grid; place-items: center; max-width: none; margin: 0; padding: 0; background: none; }
@@ -101,7 +99,7 @@
 @media (max-width: 800px) {
   .login-screen { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-content: start; }
   .login-brand { gap: .9rem; padding-right: 3.5rem; }
-  .login-brand-text, .login-brand-foot { display: none; }
+  .login-brand-foot { display: none; }
   .login-brand-title { font-size: 1.35rem; }
   .login-brand-eyebrow { margin-bottom: .45rem; }
   .login-main { place-items: start center; }

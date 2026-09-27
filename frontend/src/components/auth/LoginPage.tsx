@@ -77,8 +77,6 @@ export function LoginPage({ notice, onLogin }: LoginPageProps) {
         <div className="login-brand-copy">
           <p className="login-brand-eyebrow">ДИСПЕТЧЕРСКИЙ ЦЕНТР</p>
           <p className="login-brand-title">Прогноз загруженности трамвайной сети Москвы</p>
-          <p className="login-brand-text">Карта нагрузки по маршрутам и остановкам, рейтинги перегруженных участков
-            и прогноз на день, месяц и год.</p>
         </div>
         <p className="login-brand-foot">Хакатон Московского транспорта · 2026</p>
       </section>

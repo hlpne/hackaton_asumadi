@@ -7,7 +7,7 @@ import { NetworkMap } from "../map/NetworkMap";
 import type { Theme } from "../../theme";
 import { WheelPicker } from "../layout/WheelPicker";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
-import { FloatingPanelControls, FloatingPanelToggle, useFloatingPanel } from "../layout/FloatingPanelControls";
+import { FloatingPanelControls, useFloatingPanel } from "../layout/FloatingPanelControls";
 
 type RankingView = "routes" | "stops";
 
@@ -63,7 +63,6 @@ export function RankingsPanel({ routes: catalogRoutes, selectedRouteId, selected
       <FloatingPanelControls panel={panel} />
 
       <aside className="network-side-panel" aria-label="Параметры и зоны внимания сети">
-        <FloatingPanelToggle panel={panel} />
         {controls}
         <div className="network-heading">
           <div><p className="eyebrow">ВСЯ ТРАМВАЙНАЯ СЕТЬ</p><h2>Зоны внимания</h2></div>
