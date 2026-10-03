@@ -25,6 +25,8 @@ interface MapViewProps {
   onTimeIndexChange: (index: number) => void;
   horizon: Horizon;
   validationColor?: string;
+  /** Сценарный расчёт для выбранной точки времени (null — сценарий не активен). */
+  scenarioValidations?: number | null;
   onStopSelect: (stopId: string) => void;
   theme: Theme;
   onSplit?: (edge: SplitEdge) => void;
@@ -45,7 +47,7 @@ function cachedGeometry(routeId: string, directionId: 0 | 1): Promise<RouteGeome
 }
 
 export function MapView({ route, snapshot, stops, segment, directionId, startStopId, selectedStopId, focusedPoint, busy,
-  forecastPoints, selectedTimeIndex, onTimeIndexChange, horizon, validationColor, onStopSelect, theme, onSplit }: MapViewProps) {
+  forecastPoints, selectedTimeIndex, onTimeIndexChange, horizon, validationColor, scenarioValidations, onStopSelect, theme, onSplit }: MapViewProps) {
   const [geometry, setGeometry] = useState<RouteGeometry | null>(null);
   const [geometryError, setGeometryError] = useState("");
   const [yandexError, setYandexError] = useState("");
@@ -115,7 +117,7 @@ export function MapView({ route, snapshot, stops, segment, directionId, startSto
       </div>
       {activePoint && <ForecastTimeControl points={forecastPoints} selectedIndex={selectedTimeIndex}
         onChange={onTimeIndexChange} horizon={horizon} validations={activePoint.predicted_load}
-        color={validationColor} scope="весь маршрут" />}
+        color={validationColor} scope="весь маршрут" scenarioValidations={scenarioValidations} />}
       {activePoint && <ValidationLegend />}
       {geometryError && <p className="map-empty" role="alert">Не удалось получить линии маршрута: {geometryError}</p>}
       {segment && geometry && displayGeometry?.lines.length === 0 &&

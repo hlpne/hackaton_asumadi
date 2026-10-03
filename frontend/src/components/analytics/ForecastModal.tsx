@@ -1,33 +1,18 @@
 import { useEffect } from "react";
 import type { ForecastResponse } from "../../types";
 import { ForecastTable } from "./ForecastTable";
+import { downloadRouteScenarioCsv, downloadRouteValidationsCsv } from "../../forecastCsv";
+import { isNeutralScenario, type ScenarioAdjustments } from "../../scenario";
 
 interface ForecastModalProps {
   forecast: ForecastResponse;
+  title?: string;
+  scenario?: ScenarioAdjustments;
   onClose: () => void;
 }
 
-function downloadCsv(forecast: ForecastResponse) {
-  const header = "timestamp,predicted_load";
-  const rows = forecast.points.map((p) =>
-    [
-      p.timestamp,
-      p.predicted_load,
-    ].join(",")
-  );
-  const csv = [header, ...rows].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `forecast_${forecast.series_key.route_id}_${forecast.horizon}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-export function ForecastModal({ forecast, onClose }: ForecastModalProps) {
+export function ForecastModal({ forecast, title = "Прогноз по временным интервалам", scenario, onClose }: ForecastModalProps) {
+  const scenarioActive = scenario !== undefined && !isNeutralScenario(scenario);
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -42,22 +27,25 @@ export function ForecastModal({ forecast, onClose }: ForecastModalProps) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Прогноз по временным интервалам</h2>
+          <h2>{title}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть">
             ✕
           </button>
         </div>
 
         <div className="modal-actions">
-          <button className="btn-secondary" onClick={() => downloadCsv(forecast)}>
-            Скачать CSV
+          <button className="btn-secondary" onClick={() => downloadRouteValidationsCsv(forecast)}>
+            ↓ Базовый CSV
           </button>
+          {scenarioActive && <button className="btn-secondary" onClick={() => downloadRouteScenarioCsv(forecast, scenario)}>
+            ↓ Сценарный CSV
+          </button>}
         </div>
 
         <div className="modal-body">
-          <ForecastTable forecast={forecast} />
+          <ForecastTable forecast={forecast} scenario={scenario} />
         </div>
       </div>
     </div>

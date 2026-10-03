@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useId, useState, type ReactNode } from "react";
-import { ArrowRightIcon, ChartBarIcon, ClockIcon, MapPinIcon, TramIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { lazy, Suspense, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { ArrowRightIcon, ChartBarIcon, ClockIcon, MapPinIcon, TableIcon, TramIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import type { ForecastResponse, Horizon, MapForecastPoint, MapForecastResponse, Route, RouteStop } from "../../types";
 import type { RouteSegment } from "../../routeSegment";
 import { MapView } from "../map/MapView";
@@ -7,8 +7,12 @@ import { StopsModal } from "./StopsModal";
 import type { Theme } from "../../theme";
 import type { SplitEdge } from "../map/EdgeSplitHandles";
 import { FloatingPanelControls, useFloatingPanel } from "../layout/FloatingPanelControls";
-import { downloadRouteValidationsCsv } from "../../forecastCsv";
+import { downloadRouteScenarioCsv, downloadRouteValidationsCsv } from "../../forecastCsv";
 import { forecastValidationLevel, validationColor } from "../../loadLevel";
+import { ScenarioPanel } from "./ScenarioPanel";
+import { ForecastModal } from "./ForecastModal";
+import { applyScenario, formatSignedPercent, isNeutralScenario, resetScenario, roundValidations,
+  type ScenarioAdjustments } from "../../scenario";
 
 const LoadChart = lazy(() => import("./LoadChart").then((module) => ({ default: module.LoadChart })));
 
@@ -38,11 +42,22 @@ interface RouteDetailsDashboardProps {
 
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric" });
+const hour = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
+const dayMonth = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit" });
+
+function focusLabel(timestamp: string, horizon: Horizon): string {
+  const start = new Date(timestamp);
+  return horizon === "day" ? `${hour.format(start)}–${hour.format(new Date(start.getTime() + 3_600_000))}` : dayMonth.format(start);
+}
 
 export function RouteDetailsDashboard({ route, stops, snapshot, segment, directionId, startStopId, focusedPoint, selectedStopId, busy,
   forecast, forecastBusy, forecastError, forecastLabel, horizon, sharedTimeIndex, onSharedTimeIndexChange,
   onSelectStop, onRetryForecast, theme, controls, onSplit }: RouteDetailsDashboardProps) {
   const [allStopsOpen, setAllStopsOpen] = useState(false);
+  const [tableOpen, setTableOpen] = useState(false);
+  // Сценарий «что если?» принадлежит этому окну: KPI, график, таблица, карта и CSV читают одно состояние.
+  // В Split View у каждого окна свой сценарий. Горизонт и дата сценарий не сбрасывают — только кнопка «Сбросить».
+  const [scenario, setScenario] = useState<ScenarioAdjustments>(resetScenario);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState(12);
   const panel = useFloatingPanel();
   const forecastId = useId();
@@ -61,6 +76,13 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
   const visibleStopCount = segment?.stops.length ?? stops.filter((stop) => stop.direction_id === direction).length;
   const peakPoint = modelPoints.reduce<(typeof modelPoints)[number] | null>((peak, point) =>
     !peak || point.predicted_load > peak.predicted_load ? point : peak, null);
+  const scenarioActive = !isNeutralScenario(scenario);
+  const scenarioValues = useMemo(() => modelPoints.map((point) => applyScenario(point.predicted_load, scenario)), [modelPoints, scenario]);
+  const scenarioTotal = scenarioValues.length ? roundValidations(scenarioValues.reduce((sum, value) => sum + value, 0)) : null;
+  const scenarioPeak = scenarioValues.length ? roundValidations(Math.max(...scenarioValues)) : null;
+  const activeScenario = activePoint ? roundValidations(applyScenario(activePoint.predicted_load, scenario)) : null;
+  const scenarioShare = (base: number | null, value: number | null) =>
+    base && value !== null ? formatSignedPercent((value - base) / base * 100, 1) : "0\u202f%";
   const firstForecastDate = forecast?.points[0]?.timestamp;
   const lastForecastDate = forecast?.points.at(-1)?.timestamp;
   const firstForecastDay = firstForecastDate ? date.format(new Date(firstForecastDate)) : "";
@@ -77,6 +99,7 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
         forecastPoints={modelPoints} selectedTimeIndex={activeTimeIndex}
         onTimeIndexChange={onSharedTimeIndexChange ?? setSelectedTimeIndex}
         horizon={horizon} validationColor={activeColor}
+        scenarioValidations={scenarioActive ? activeScenario : null}
         theme={theme} onSplit={onSplit}
         onStopSelect={(stopId) => {
           const point = points.find((item) => item.stop_id === stopId);
@@ -89,14 +112,21 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       {controls}
       <div className="detail-metrics" aria-live="polite">
       <article className="detail-metric"><span className="detail-metric-icon"><UsersThreeIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Всего валидаций</span><strong>{modelTotal === null ? "—" : number.format(modelTotal)}</strong>
-        <small>Модель · весь маршрут · {horizon === "day" ? "за сутки" : "за период"}</small></div></article>
+        <small>Модель · весь маршрут · {horizon === "day" ? "за сутки" : "за период"}</small>
+        {scenarioActive && scenarioTotal !== null && <small className="detail-metric-scenario">Сценарий: <b>{number.format(scenarioTotal)}</b> · {scenarioShare(modelTotal, scenarioTotal)}</small>}</div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ClockIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пик валидаций</span><strong>{modelPeak === null ? "—" : number.format(modelPeak)}</strong>
-        <small>Модель · {horizon === "day" ? "за час" : "за день"}</small></div></article>
+        <small>Модель · {horizon === "day" ? "за час" : "за день"}</small>
+        {scenarioActive && scenarioPeak !== null && <small className="detail-metric-scenario">Сценарий: <b>{number.format(scenarioPeak)}</b> · {scenarioShare(modelPeak, scenarioPeak)}</small>}</div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><MapPinIcon weight="fill" aria-hidden="true" /></span><div className="detail-metric-content"><span>Пиковый интервал</span><strong className="detail-metric-name">{peakPoint ? new Date(peakPoint.timestamp).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", hour: horizon === "day" ? "2-digit" : undefined, minute: horizon === "day" ? "2-digit" : undefined }) : "—"}</strong>
         <small>По всему маршруту · {horizon === "day" ? "час" : "день"}</small></div></article>
       <article className="detail-metric"><span className="detail-metric-icon"><ChartBarIcon weight="bold" aria-hidden="true" /></span><div className="detail-metric-content"><span>Остановок</span><strong>{visibleStopCount || "—"}</strong>
         <small>{segment ? "На выбранном участке" : `Весь маршрут · направление ${direction + 1}`}</small></div></article>
     </div>
+
+      {modelPoints.length > 0 && <ScenarioPanel value={scenario} onChange={setScenario} comparisons={[
+        { label: horizon === "day" ? "За сутки · весь маршрут" : "За период · весь маршрут", base: modelTotal, scenario: scenarioTotal },
+        ...(activePoint ? [{ label: `В фокусе · ${focusLabel(activePoint.timestamp, horizon)}`, base: activePoint.predicted_load, scenario: activeScenario }] : []),
+      ]} onDownload={forecast ? () => downloadRouteScenarioCsv(forecast, scenario) : undefined} />}
 
       <section className="detail-forecast" aria-labelledby={forecastId} aria-busy={forecastBusy}>
       <div className="detail-forecast-heading">
@@ -111,8 +141,13 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       {!forecastBusy && forecastError && <div className="top-panel-error" role="alert"><p>Не удалось получить прогноз: {forecastError}</p>
         <button type="button" onClick={onRetryForecast}>Повторить</button></div>}
       {!forecastBusy && !forecastError && forecast && (forecast.points.length
-        ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} theme={theme} selectedIndex={activeTimeIndex} /></Suspense>
+        ? <Suspense fallback={<p className="detail-forecast-status" role="status">Открываем график…</p>}><LoadChart forecast={forecast} theme={theme} selectedIndex={activeTimeIndex}
+          scenario={modelPoints.length ? scenario : undefined} /></Suspense>
         : <p className="detail-forecast-status">Для выбранного периода нет точек прогноза.</p>)}
+      {!forecastBusy && !forecastError && forecast && forecast.points.length > 0 && <div className="detail-forecast-actions">
+        <button type="button" className="text-button" onClick={() => setTableOpen(true)}><TableIcon weight="bold" aria-hidden="true" /> Таблица прогноза</button>
+        {scenarioActive && <span className="detail-forecast-scenario-note">Пунктир — сценарный расчёт; базовый прогноз модели не изменён.</span>}
+      </div>}
       <p className="detail-forecast-status">Модель прогнозирует валидации по всему маршруту. Остановки на карте показаны для навигации; прогнозов по ним нет.</p>
       </section>
 
@@ -147,6 +182,8 @@ export function RouteDetailsDashboard({ route, stops, snapshot, segment, directi
       </section>
       </aside>
     </div>
+    {tableOpen && forecast && <ForecastModal forecast={forecast} scenario={modelPoints.length ? scenario : undefined}
+      title={`Прогноз валидаций · ${route?.name.replace(" · демопрогноз", "") ?? "маршрут"}`} onClose={() => setTableOpen(false)} />}
     {allStopsOpen && <StopsModal stops={stops} snapshot={snapshot} selectedStopId={selectedStopId}
       onSelect={onSelectStop} onClose={() => setAllStopsOpen(false)} />}
   </div>;

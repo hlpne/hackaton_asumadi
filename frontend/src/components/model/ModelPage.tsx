@@ -10,6 +10,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { getModelMetadata } from "../../api";
+import { SCENARIO_BOUNDS, SCENARIO_KEYS, SCENARIO_LABELS, formatSignedPercent } from "../../scenario";
 import type { ModelMetadata, ModelMetricSlice } from "../../types";
 
 const dateFormat = new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", year: "numeric" });
@@ -157,6 +158,15 @@ export function ModelPage() {
         <ul>{metadata.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
       </section>
     </div>
+
+    <section className="model-section" aria-labelledby="scenario-title">
+      <div className="model-section-heading"><div><p className="eyebrow">ЧТО ЕСЛИ?</p><h2 id="scenario-title">Сценарные коэффициенты — не признаки модели</h2></div>
+        <p>Сценарные коэффициенты не являются входными ML-признаками текущего inference. Они применяются после получения прогноза и служат инструментом оперативного what-if анализа.</p></div>
+      <p className="model-method-note">K = K<sub>погода</sub> × K<sub>событие</sub> × K<sub>сезон</sub>, K<sub>x</sub> = 1 + поправка / 100; сценарный прогноз = max(0, прогноз модели × K).
+        {" "}Диапазоны: {SCENARIO_KEYS.map((key) => `${SCENARIO_LABELS[key].toLowerCase()} ${formatSignedPercent(SCENARIO_BOUNDS[key].min)}…${formatSignedPercent(SCENARIO_BOUNDS[key].max)}`).join(", ")}, шаг 1 %.
+        {" "}Базовый прогноз модели при этом не меняется и всегда показан рядом со сценарным.</p>
+      <p className="model-method-note">Для ориентира: погода, которая реально учтена в математической части решения (архив Open-Meteo), меняет уровень дня всего на −2,3…+1 %. Значения сценарных поправок задаёт пользователь; это не оценка причинного эффекта.</p>
+    </section>
 
     <section className="model-section" aria-labelledby="sources-title">
       <div className="model-section-heading"><div><p className="eyebrow">ПРОИСХОЖДЕНИЕ ДАННЫХ</p><h2 id="sources-title">Источники</h2></div><p>Карточка загружается из <code>/api/model/metadata</code>; значения не зашиты в React.</p></div>

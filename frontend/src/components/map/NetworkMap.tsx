@@ -26,6 +26,7 @@ interface NetworkMapProps {
   selectedTimeIndex: number;
   onTimeIndexChange: (index: number) => void;
   selectedValidations: number;
+  scenarioValidations?: number | null;
   onSplit?: (edge: SplitEdge) => void;
 }
 
@@ -40,7 +41,7 @@ function runColor(run: SchematicRun, routeColor: string | undefined): string {
 }
 
 export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRouteId, selectedStop, validationColors,
-  currentValuesByRoute, forecastPoints, selectedTimeIndex, onTimeIndexChange, selectedValidations, onSplit }: NetworkMapProps) {
+  currentValuesByRoute, forecastPoints, selectedTimeIndex, onTimeIndexChange, selectedValidations, scenarioValidations, onSplit }: NetworkMapProps) {
   const titleId = useId();
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<YMapInstance | null>(null);
@@ -270,7 +271,7 @@ export function NetworkMap({ routes, snapshot, theme, onSelectRoute, selectedRou
     </div>
     {loading && <p className="map-empty" role="status">Загружаем линии маршрутов…</p>}
     <ForecastTimeControl points={forecastPoints} selectedIndex={selectedTimeIndex} onChange={onTimeIndexChange}
-      horizon={snapshot.horizon} validations={selectedValidations} scope="вся сеть" />
+      horizon={snapshot.horizon} validations={selectedValidations} scope="вся сеть" scenarioValidations={scenarioValidations} />
     {validationColors?.size ? <ValidationLegend /> : null}
     {!loading && geometryError && <p className="map-empty" role="alert">{geometryError}</p>}
   </section>;

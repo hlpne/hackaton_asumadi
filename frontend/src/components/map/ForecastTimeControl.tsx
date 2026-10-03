@@ -9,13 +9,15 @@ interface ForecastTimeControlProps {
   validations: number;
   color?: string;
   scope: string;
+  /** Сценарный расчёт для выбранной точки; показывается рядом с базовым прогнозом, если сценарий активен. */
+  scenarioValidations?: number | null;
 }
 
 const validationNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 const dayLabel = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric" });
 const hourLabel = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" });
 
-export function ForecastTimeControl({ points, selectedIndex, onChange, horizon, validations, color, scope }: ForecastTimeControlProps) {
+export function ForecastTimeControl({ points, selectedIndex, onChange, horizon, validations, color, scope, scenarioValidations }: ForecastTimeControlProps) {
   const sliderId = useId();
   const point = points[selectedIndex];
   if (!point || horizon === "year") return null;
@@ -31,5 +33,9 @@ export function ForecastTimeControl({ points, selectedIndex, onChange, horizon, 
       onChange={(event) => onChange(Number(event.target.value))}
       aria-valuetext={`${timeLabel}: ${validationNumber.format(validations)} валидаций`} />
     <small><b style={{ color }}>{validationNumber.format(validations)}</b> валидаций · {scope}</small>
+    {scenarioValidations !== undefined && scenarioValidations !== null && <small className="map-time-scenario">
+      Сценарий: <b>{validationNumber.format(scenarioValidations)}</b>
+      {" "}({validations ? `${scenarioValidations >= validations ? "+" : "\u2212"}${validationNumber.format(Math.abs(scenarioValidations - validations) / validations * 100)}\u202f%` : "0\u202f%"})
+    </small>}
   </div>;
 }

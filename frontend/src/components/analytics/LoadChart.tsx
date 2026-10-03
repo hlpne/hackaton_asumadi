@@ -10,12 +10,18 @@ import {
 } from "recharts";
 import type { ForecastResponse, Horizon } from "../../types";
 import type { Theme } from "../../theme";
+import { applyScenarioToForecast, formatSignedNumber, formatSignedPercent, isNeutralScenario,
+  type ScenarioAdjustments } from "../../scenario";
 
 interface LoadChartProps {
   forecast: ForecastResponse;
   theme: Theme;
   selectedIndex?: number;
+  /** Пользовательский сценарий: рисуется отдельной линией, базовый прогноз модели не меняется. */
+  scenario?: ScenarioAdjustments;
 }
+
+const chartNumber = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 
 function formatTick(ts: string, horizon: Horizon): string {
   const d = new Date(ts);
@@ -37,7 +43,7 @@ function formatHourTick(value: number): string {
   return hour === "00" ? "00:00" : `${Number(hour)}:00`;
 }
 
-export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
+export function LoadChart({ forecast, theme, selectedIndex, scenario }: LoadChartProps) {
   const css = getComputedStyle(document.documentElement);
   const color = (token: string) => css.getPropertyValue(token).trim();
   const colors = {
@@ -45,11 +51,15 @@ export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
     muted: color("--text-muted"),
     text: color("--text-primary"),
     predicted: color("--status-critical"),
+    scenario: color("--link"),
   };
-  const data = forecast.points.map((p) => ({
+  const scenarioActive = scenario !== undefined && !isNeutralScenario(scenario);
+  const scenarioPoints = scenarioActive ? applyScenarioToForecast(forecast, scenario) : [];
+  const data = forecast.points.map((p, index) => ({
     timestamp: new Date(p.timestamp).getTime(),
     label: formatTick(p.timestamp, forecast.horizon),
     predicted_load: p.predicted_load,
+    scenario_load: scenarioActive ? scenarioPoints[index].scenario : undefined,
   }));
   const hourlyTicks = forecast.horizon === "day" && data.length
     ? Array.from(
@@ -57,10 +67,16 @@ export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
       (_, index) => Math.ceil(data[0].timestamp / 3_600_000) * 3_600_000 + index * 3_600_000,
     )
     : [];
-  const chartMax = Math.ceil(Math.max(1, ...forecast.points.map((point) => point.predicted_load)) / 10) * 10;
+  const chartMax = Math.ceil(Math.max(1, ...forecast.points.map((point) => point.predicted_load),
+    ...scenarioPoints.map((point) => point.scenario)) / 10) * 10;
+  const baseLabel = forecast.value_unit === "validations" ? "Базовый прогноз модели" : "Прогноз нагрузки";
 
   return (
     <div className="chart-wrapper" data-chart-theme={theme}>
+      {scenarioActive && <div className="chart-legend" aria-label="Линии графика">
+        <span><i style={{ background: colors.predicted }} aria-hidden="true" />{baseLabel}</span>
+        <span><i className="chart-legend-dashed" style={{ color: colors.scenario }} aria-hidden="true" />Сценарный расчёт</span>
+      </div>}
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="2 6" stroke={colors.grid} strokeOpacity={0.55} />
@@ -85,11 +101,15 @@ export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
             labelFormatter={(value) => forecast.horizon === "day"
               ? formatTick(new Date(Number(value)).toISOString(), "day")
               : String(value)}
-            formatter={(value, name) => {
+            formatter={(value, name, item) => {
+              const num = typeof value === "number" ? chartNumber.format(value) : String(value);
+              if (String(name) === "scenario_load") {
+                const base = Number((item?.payload as { predicted_load?: number } | undefined)?.predicted_load ?? 0);
+                const delta = Number(value) - base;
+                return [`${num} (${formatSignedNumber(delta)}, ${base ? formatSignedPercent(delta / base * 100, 1) : "0\u202f%"})`, "Сценарный расчёт"];
+              }
               const label = String(name) === "predicted_load"
-                ? forecast.value_unit === "validations" ? "Валидации маршрута" : "Прогноз нагрузки" : String(name);
-              const num =
-                typeof value === "number" ? value.toFixed(1) : String(value);
+                ? scenarioActive ? baseLabel : forecast.value_unit === "validations" ? "Валидации маршрута" : "Прогноз нагрузки" : String(name);
               return [num, label];
             }}
           />
@@ -102,6 +122,16 @@ export function LoadChart({ forecast, theme, selectedIndex }: LoadChartProps) {
             dot={false}
             name="predicted_load"
           />
+          {scenarioActive && <Line
+            type="monotone"
+            isAnimationActive={false}
+            dataKey="scenario_load"
+            stroke={colors.scenario}
+            strokeWidth={2.25}
+            strokeDasharray="6 5"
+            dot={false}
+            name="scenario_load"
+          />}
           {selectedIndex !== undefined && data[selectedIndex] && <ReferenceDot
             x={forecast.horizon === "day" ? data[selectedIndex].timestamp : data[selectedIndex].label}
             y={data[selectedIndex].predicted_load} r={6} fill={colors.predicted}
